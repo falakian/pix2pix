@@ -1,32 +1,94 @@
-import os
-from data.base_dataset import BaseDataset, get_params, get_transform
-from data.image_folder import make_dataset
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 from PIL import Image
-
+import torch
+from data.base_dataset import BaseDataset
+from data.image_folder import make_dataset
 
 class AlignedDataset(BaseDataset):
-    def __init__(self, opt):
-        BaseDataset.__init__(self, opt)
-        self.dir_input = os.path.join(opt.dataroot, opt.input_dir)  # e.g., ./datasets/facades/trainA
-        self.dir_output = os.path.join(opt.dataroot, opt.output_dir)  # e.g., ./datasets/facades/trainB
-        self.input_paths = sorted(make_dataset(self.dir_input, opt.max_dataset_size))  # get input image paths
-        self.output_paths = sorted(make_dataset(self.dir_output, opt.max_dataset_size))  # get output image paths
-        assert len(self.input_paths) == len(self.output_paths), f"Mismatched dataset sizes: {len(self.input_paths)} images in input, {len(self.output_paths)} images in output"
-        assert self.opt.load_size >= self.opt.crop_size, "crop_size should be smaller than the size of loaded image"
-        self.input_nc = self.opt.input_nc
-        self.output_nc = self.opt.output_nc
+    '''A dataset class for aligned image pairs (e.g., input-output pairs like facades).'''
+    def __init__(self, opt) -> None:
+        super().__init__(opt)
 
+        # Define directory paths using pathlib for robust path handling
+        self.dir_input: Path = Path(opt.dataroot) / opt.input_dir
+        self.dir_output: Path = Path(opt.dataroot) / opt.output_dir
+        
+        # Verify directories exist
+        if not self.dir_input.exists():
+            raise FileNotFoundError(f"Input directory not found: {self.dir_input}")
+        if not self.dir_output.exists():
+            raise FileNotFoundError(f"Output directory not found: {self.dir_output}")
+        
+        # Load and sort image paths
+        self.input_paths: List[Path] = sorted(
+            make_dataset(str(self.dir_input), opt.max_dataset_size)
+        )
+        self.output_paths: List[Path] = sorted(
+            make_dataset(str(self.dir_output), opt.max_dataset_size)
+        )
+        
+        # Validate dataset consistency
+        if len(self.input_paths) != len(self.output_paths):
+            raise ValueError(
+                f"Mismatched dataset sizes: {len(self.input_paths)} input images, "
+                f"{len(self.output_paths)} output images"
+            )
+        
+        # Validate image size parameters
+        if opt.load_size < opt.crop_size:
+            raise ValueError(
+                f"load_size ({opt.load_size}) must be >= crop_size ({opt.crop_size})"
+            )
+        
+        # Store channel configurations
+        self.input_nc: int = opt.input_nc
+        self.output_nc: int = opt.output_nc
+        
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+        """
+        Retrieve an aligned input-output image pair at the specified index.
+
+        Args:
+            index (int): Index of the image pair to retrieve.
+
+        Returns:
+            Dict[str, Union[torch.Tensor, str]]: Dictionary containing:
+                - 'input': Transformed input image tensor
+                - 'output': Transformed output image tensor
+                - 'input_paths': Path to input image
+                - 'output_paths': Path to output image
+
+        """
         input_path = self.input_paths[index]
         output_path = self.output_paths[index]
+        
+        # Open and convert images to RGB
         input_img = Image.open(input_path).convert('RGB')
         output_img = Image.open(output_path).convert('RGB')
-
+        
+        # Get transformation parameters
         params = self.get_params(self.opt, input_img.size)
-        input_img = self.get_transform(input_img, params)
-        output_img = self.get_transform(output_img, params)
-        return {'input': input_img, 'output': output_img, 'input_paths': input_path, 'output_paths': output_path}
+        
+        # Apply transformations
+        input_tensor = self.get_transform(input_img, params)
+        output_tensor = self.get_transform(output_img, params)
+        
+        return {
+            'input': input_tensor,
+            'output': output_tensor,
+            'input_paths': str(input_path),
+            'output_paths': str(output_path)
+        }
+        
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """
+        Get the total number of image pairs in the dataset.
+
+        Returns:
+            int: Minimum of input/output dataset sizes and max_dataset_size.
+        """
         return min(len(self.input_paths), len(self.output_paths), self.opt.max_dataset_size)
+    
