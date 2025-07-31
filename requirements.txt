@@ -1,0 +1,5 @@
+python>=3.8
+torch>=1.4.0
+torchvision>=0.5.0
+pillow>=10.4.0
+pathlib>=1.0.1
