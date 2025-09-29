@@ -24,11 +24,12 @@ def main() -> None:
     # Training loop over epochs
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
         epoch_start_time: float = time.time()
+        epoch_iter = 0
 
         # Iterate over dataset
         for data in dataset:
             total_iters += opt.batch_size
-
+            epoch_iter += opt.batch_size
             # Forward pass and optimization
             model.set_input(data)
             model.optimize_parameters()
@@ -36,8 +37,10 @@ def main() -> None:
             # Print losses at specified frequency
             if total_iters % opt.print_freq == 0:
                 losses: Dict[str, float] = model.get_current_losses()
-                print(f"[Epoch {epoch}]"
-                      f"[Iter {total_iters}] Losses: {losses}")
+                message = f"(epoch: {epoch}, iters: {epoch_iter}) "
+                for k, v in losses.items():
+                    message += f", {k}: {v:.3f}"
+                print(message)
 
         # Update learning rate after each epoch
         model.update_learning_rate()
@@ -46,7 +49,7 @@ def main() -> None:
         if epoch % opt.save_epoch == 0:
             print(f"Saving model at epoch {epoch}")
             model.save_networks("latest")
-            model.save_networks(epoch)
+            #model.save_networks(epoch)
 
         # Print epoch completion time
         epoch_duration: int = int(time.time() - epoch_start_time)
