@@ -32,8 +32,7 @@ def main() -> None:
             epoch_iter += opt.batch_size
             # Forward pass and optimization
             model.set_input(data)
-            model.optimize_parameters()
-
+            model.optimize_parameters(epoch)
             # Print losses at specified frequency
             if total_iters % opt.print_freq == 0:
                 losses: Dict[str, float] = model.get_current_losses()

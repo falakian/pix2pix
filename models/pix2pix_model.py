@@ -66,7 +66,7 @@ class Pix2PixModel(BaseModel):
             # Define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = nn.L1Loss()
-            self.criterionLPIPS = lpips.LPIPS(net='vgg').to(self.device)
+            self.criterionLPIPS = lpips.LPIPS(net='alex').to(self.device)
 
             # Initialize optimizers
             self.optimizer_G = torch.optim.Adam(
@@ -139,7 +139,10 @@ class Pix2PixModel(BaseModel):
         self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
 
         # LPIPS
-        self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(self.output_generator, self.real_output).mean() * self.lambda_lpips
+        scale_lpips = 0.25
+        generator_scaled = F.interpolate(self.output_generator, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
+        real_scaled = F.interpolate(self.real_output, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
+        self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(generator_scaled, real_scaled).mean() * self.lambda_lpips
 
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
