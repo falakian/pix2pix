@@ -46,31 +46,42 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--n_epochs',
             type=int,
-            default=100,
+            default=30,
             help='Number of epochs with the initial learning rate')
         parser.add_argument(
             '--n_epochs_decay',
             type=int,
-            default=100,
+            default=70,
             help='Number of epochs to linearly decay learning rate to zero')
-
+        parser.add_argument(
+            '--pretrain_epochs',
+            type=int,
+            default=5,
+            help='Number of initial epochs where only the generator (G) is trained')
+        
         # Optimizer parameters
         parser.add_argument(
-            '--lr',
+            '--lr_G',
             type=float,
             default=0.0002,
-            help='Initial learning rate for the optimizer')
+            help='Initial learning rate for the generator optimizer')
+        parser.add_argument(
+            '--lr_D',
+            type=float,
+            default=0.0002,
+            help='Initial learning rate for the discriminator optimizer')
+        
         parser.add_argument(
             '--beta1',
             type=float,
             default=0.5,
             help='Momentum term (beta1) for the Adam optimizer')
         parser.add_argument(
-            '--lambda_L1',
+            '--lambda_lpips',
             type=float,
-            default=100.0,
-            help='Weight for L1 loss in the objective function')
-
+            default=1.0,
+            help='Weight for lpips loss in the objective function')
+        
         # Learning rate scheduling
         parser.add_argument(
             '--lr_policy',

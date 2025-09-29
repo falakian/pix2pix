@@ -4,7 +4,7 @@ import functools
 from typing import Callable, Optional, List, Any, Dict
 
 # Helper Functions
-def get_norm_layer(norm_type: str = 'batch') -> Optional[Callable]:
+def get_norm_layer(norm_type: str = 'instance') -> Optional[Callable]:
     """
     Return a normalization layer based on the specified type.
 
@@ -99,7 +99,7 @@ def get_scheduler(optimizer: torch.optim.Optimizer, opt: Dict[str, Any]) -> torc
     lr_policy = opt.lr_policy
     if lr_policy == 'linear':
         def lambda_rule(epoch: int) -> float:
-            return 1.0 - max(0, epoch + opt.epoch_count - opt.n_epochs) / float(opt.n_epochs_decay + 1)
+            return 1.0 - max(0, epoch + opt.epoch_count - opt.n_epochs) / float(opt.n_epochs_decay)
         return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
     elif lr_policy == 'step':
         return torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_decay_iters, gamma=0.1)
@@ -178,7 +178,7 @@ class UnetSkipConnectionBlock(nn.Module):
         inner_nc: int,
         input_nc: Optional[int] = None,
         submodule: Optional[nn.Module] = None,
-        norm_layer: Callable = nn.BatchNorm2d,
+        norm_layer: Callable = nn.InstanceNorm2d,
         innermost: bool = False,
         outermost: bool = False,
         use_dropout: bool = False,
@@ -350,7 +350,7 @@ def define_G(
     num_downs: int,
     height_down_layers: int,
     # netG: str = 'unet_256',
-    norm: str = 'batch',
+    norm: str = 'instance',
     use_dropout: bool = False,
     init_type: str = 'normal',
     init_gain: float = 0.02
@@ -380,7 +380,7 @@ def define_D(
     ndf: int,
     # netD: str = 'basic',
     n_layers_D: int = 3,
-    norm: str = 'batch',
+    norm: str = 'instance',
     init_type: str = 'normal',
     init_gain: float = 0.02
 ) -> nn.Module:

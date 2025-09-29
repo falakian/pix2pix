@@ -78,7 +78,7 @@ class BaseOptions:
         parser.add_argument(
             '--norm',
             type=str,
-            default='batch',
+            default='instance',
             choices=['instance', 'batch', 'none'],
             help='Normalization type for the network')
         parser.add_argument(
