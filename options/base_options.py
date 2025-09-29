@@ -140,8 +140,8 @@ class BaseOptions:
         parser.add_argument(
             '--preprocess',
             type=str,
-            default='none',
-            choices=['resize_and_crop', 'crop', 'resize', 'none'],
+            default='augment',
+            choices=['resize_and_crop', 'crop', 'resize', 'augment', 'none'],
             help='Preprocessing method for images during loading')
         parser.add_argument(
             '--no_flip',

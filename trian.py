@@ -59,9 +59,10 @@ def main() -> None:
         print(f"End of epoch {epoch}/{opt.n_epochs + opt.n_epochs_decay} - "
               f"Time: {epoch_duration} sec")
         
+        message = ''
         for k, v in losses_means.items():
             avg_loss = v / epoch_iter if epoch_iter > 0 else 0.0
-        message += f", avg {k}: {avg_loss:.3f}"
+            message += f", avg {k}: {avg_loss:.3f}"
         print(message)
         
 if __name__ == "__main__":
