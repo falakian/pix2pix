@@ -223,6 +223,8 @@ class BaseOptions:
             Processed configuration as a Namespace object.
         """
         opt = self.gather_options()
+        opt.isTrain = self.isTrain
+        
         if opt.suffix:
             opt.name = f"{opt.name}_{opt.suffix.format(**vars(opt))}"
         self.print_options(opt)

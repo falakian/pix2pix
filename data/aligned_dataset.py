@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 from PIL import Image
 import torch
-from data.base_dataset import BaseDataset
+from data.base_dataset import BaseDataset, get_params, get_transform
 from data.image_folder import make_dataset
 
 class AlignedDataset(BaseDataset):
@@ -69,11 +69,14 @@ class AlignedDataset(BaseDataset):
         output_img = Image.open(output_path).convert('RGB')
         
         # Get transformation parameters
-        params = self.get_params(self.opt, input_img.size)
+        params = get_params(self.opt, input_img.size)
         
         # Apply transformations
-        input_tensor = self.get_transform(input_img, params)
-        output_tensor = self.get_transform(output_img, params)
+        input_transform = get_transform(self.opt, params, grayscale=(self.input_nc == 1))
+        output_transform = get_transform(self.opt, params, grayscale=(self.output_nc == 1))
+        
+        input_tensor = input_transform(input_img)
+        output_tensor = output_transform(output_img)
         
         return {
             'input': input_tensor,
