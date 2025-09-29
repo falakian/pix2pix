@@ -39,42 +39,42 @@ class Pix2PixModel(BaseModel):
         
         # Initialize generator network
         self.netG: nn.Module = networks.define_G(
-            input_nc=opt.get('input_nc', 3),
-            output_nc=opt.get('output_nc', 3),
-            ngf=opt.get('ngf', 64),
-            netG=opt.get('netG', 'unet_256'),
-            norm=opt.get('norm', 'batch'),
-            use_dropout=not opt.get('no_dropout', False),
-            init_type=opt.get('init_type', 'normal'),
-            init_gain=opt.get('init_gain', 0.02)
+            input_nc=opt.input_nc,
+            output_nc=opt.output_nc,
+            ngf=opt.ngf,
+            netG=opt.netG,
+            norm=opt.norm,
+            use_dropout=not opt.no_dropout,
+            init_type=opt.init_type,
+            init_gain=opt.init_gain
         )
         
         # Initialize discriminator network (only in training mode)
         if self.isTrain:
             self.netD: nn.Module = networks.define_D(
-                input_nc=opt.get('input_nc', 3) + opt.get('output_nc', 3),
-                ndf=opt.get('ndf', 64),
-                netD=opt.get('netD', 'basic'),
-                n_layers_D=opt.get('n_layers_D', 3),
-                norm=opt.get('norm', 'batch'),
-                init_type=opt.get('init_type', 'normal'),
-                init_gain=opt.get('init_gain', 0.02)
+                input_nc=opt.input_nc + opt.output_nc,
+                ndf=opt.ndf,
+                netD=opt.netD,
+                n_layers_D=opt.n_layers_D,
+                norm=opt.norm,
+                init_type=opt.init_type,
+                init_gain=opt.init_gain
             )
             
             # Define loss functions
-            self.criterionGAN = networks.GANLoss(opt.get('gan_mode', 'lsgan')).to(self.device)
+            self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = nn.L1Loss()
             
             # Initialize optimizers
             self.optimizer_G = torch.optim.Adam(
                 self.netG.parameters(),
-                lr=opt.get('lr', 0.0002),
-                betas=(opt.get('beta1', 0.5), 0.999)
+                lr=opt.lr,
+                betas=(opt.beta1, 0.999)
             )
             self.optimizer_D = torch.optim.Adam(
                 self.netD.parameters(),
-                lr=opt.get('lr', 0.0002),
-                betas=(opt.get('beta1', 0.5), 0.999)
+                lr=opt.lr,
+                betas=(opt.beta1, 0.999)
             )
             self.optimizers = [self.optimizer_G, self.optimizer_D]
         
@@ -125,7 +125,7 @@ class Pix2PixModel(BaseModel):
         self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True)
         
         # Calculate L1 loss
-        self.loss_G_L1: torch.Tensor = self.criterionL1(self.output_generator, self.real_output) * self.opt.get('lambda_L1', 100.0)
+        self.loss_G_L1: torch.Tensor = self.criterionL1(self.output_generator, self.real_output) * self.opt.lambda_L1
         
         # Combine losses and backpropagate
         self.loss_G: torch.Tensor = self.loss_G_GAN + self.loss_G_L1

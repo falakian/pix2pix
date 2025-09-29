@@ -96,17 +96,17 @@ def get_scheduler(optimizer: torch.optim.Optimizer, opt: Dict[str, Any]) -> torc
     Raises:
         ValueError: If lr_policy is not supported
     """
-    lr_policy = opt.get('lr_policy', 'linear')
+    lr_policy = opt.lr_policy
     if lr_policy == 'linear':
         def lambda_rule(epoch: int) -> float:
-            return 1.0 - max(0, epoch + opt.get('epoch_count', 1) - opt.get('n_epochs', 100)) / float(opt.get('n_epochs_decay', 100) + 1)
+            return 1.0 - max(0, epoch + opt.epoch_count - opt.n_epochs) / float(opt.n_epochs_decay + 1)
         return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
     elif lr_policy == 'step':
-        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.get('lr_decay_iters', 50), gamma=0.1)
+        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_decay_iters, gamma=0.1)
     elif lr_policy == 'plateau':
         return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, threshold=0.01, patience=5)
     elif lr_policy == 'cosine':
-        return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.get('n_epochs', 100), eta_min=0)
+        return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.n_epochs, eta_min=0)
     else:
         raise ValueError(f"Learning rate policy '{lr_policy}' is not supported")
 

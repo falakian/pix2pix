@@ -17,9 +17,9 @@ class BaseModel(nn.Module):
         """
         super().__init__()
         self.opt = opt
-        self.isTrain: bool = opt.get('isTrain', False)
+        self.isTrain: bool = opt.isTrain
         self.device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.save_dir: Path = Path(opt.get('checkpoints_dir', '.')) / opt.get('name', 'experiment')
+        self.save_dir: Path = Path(opt.checkpoints_dir) / opt.name
         
         # Enable CuDNN optimization for fixed-size inputs
         torch.backends.cudnn.benchmark = True
@@ -66,11 +66,10 @@ class BaseModel(nn.Module):
         if self.isTrain:
             self.schedulers = [networks.get_scheduler(optimizer, opt) for optimizer in self.optimizers]
         
-        if not self.isTrain or opt.get('continue_train', False):
-            load_suffix = f"iter_{opt.get('load_iter', 0)}" if opt.get('load_iter', 0) > 0 else opt.get('epoch', 'latest')
-            self.load_networks(load_suffix)
+        if not self.isTrain or opt.continue_train:
+            self.load_networks(opt.epoch)
         
-        self.print_networks(opt.get('verbose', False))
+        self.print_networks(opt.verbose)
 
     def eval(self) -> None:
         """Switch all networks to evaluation mode."""
