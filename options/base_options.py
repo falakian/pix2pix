@@ -123,6 +123,10 @@ class BaseOptions:
             default=1,
             help='Batch size for training')
         parser.add_argument(
+            "--serial_batches",
+            action="store_true",
+            help="if true, takes images in order to make batches, otherwise takes them randomly")
+        parser.add_argument(
             '--load_size',
             type=int,
             default=286,
@@ -154,6 +158,11 @@ class BaseOptions:
             help='Maximum number of samples to load from dataset')
 
         # Additional parameters
+        parser.add_argument(
+            "--epoch",
+            type=str,
+            default="latest",
+            help="which epoch to load? set to latest to use latest cached model")
         parser.add_argument(
             '--verbose',
             action='store_true',
