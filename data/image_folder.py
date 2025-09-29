@@ -43,4 +43,4 @@ def make_dataset(dir_path: str | Path, max_dataset_size: float = float("inf")) -
         if file_path.is_file() and is_image_file(file_path):
             images.append(str(file_path))
 
-    return images[:min(int(max_dataset_size), len(images))]
+    return images[:min(max_dataset_size, len(images))]
