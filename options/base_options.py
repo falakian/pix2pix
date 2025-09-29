@@ -66,6 +66,11 @@ class BaseOptions:
             default=3,
             help='Number of layers in discriminator when netD is n_layers')
         parser.add_argument(
+            '--num_D',
+            type=int,
+            default=3,
+            help='Number of discriminators')
+        parser.add_argument(
             '--num_downs',
             type=int,
             default=8,

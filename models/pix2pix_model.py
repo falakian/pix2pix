@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 from .base_model import BaseModel
 from . import networks
 import random
-from util.DiffAugment_pytorch import DiffAugment
+from utile.DiffAugment_pytorch import DiffAugment
 
 class Pix2PixModel(BaseModel):
     """Pix2Pix model implementing a U-Net generator and PatchGAN discriminator for image-to-image translation."""
@@ -66,6 +66,7 @@ class Pix2PixModel(BaseModel):
                 input_nc=opt.input_nc + opt.output_nc,
                 ndf=opt.ndf,
                 n_layers_D=opt.n_layers_D,
+                num_D=opt.num_D,
                 init_type=opt.init_type,
                 init_gain=opt.init_gain
             )
