@@ -35,7 +35,12 @@ class Pix2PixModel(BaseModel):
         
         # Define loss names for tracking
         self.loss_names: List[str] = ['G_GAN','G_LPIPS', 'G_L1', 'D_real', 'D_fake']
-        
+        self.loss_G_GAN = 0
+        self.loss_G_LPIPS = 0
+        self.loss_G_L1 = 0
+        self.loss_D_real = 0
+        self.loss_D_fake = 0
+
         # Define model names based on training mode
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
         
@@ -82,8 +87,8 @@ class Pix2PixModel(BaseModel):
             self.optimizers = [self.optimizer_G, self.optimizer_D]
 
             
-            self.scales = [1.0, 0.5, 0.25]
-            self.scale_weights = [10, 5, 2]
+            self.scales = [0.5, 0.25]
+            self.scale_weights = [1, 0.5]
             self.lambda_lpips = opt.lambda_lpips
             self.pretrain_epochs = opt.pretrain_epochs
 
