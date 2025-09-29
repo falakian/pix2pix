@@ -66,28 +66,37 @@ class BaseOptions:
             type=int,
             default=64,
             help='Number of filters in the first convolutional layer of the discriminator')
-        parser.add_argument(
-            '--netD',
-            type=str,
-            default='basic',
-            choices=['basic', 'n_layers'],
-            help='Discriminator architecture (basic: 70x70 PatchGAN')
-        parser.add_argument(
-            '--netG',
-            type=str,
-            default='resnet_9blocks',
-            default='unet_256',
-            choices=['unet_256', 'unet_128'],
-            help='Generator architecture')
+        # parser.add_argument(
+        #     '--netD',
+        #     type=str,
+        #     default='basic',
+        #     choices=['basic', 'n_layers'],
+        #     help='Discriminator architecture (basic: 70x70 PatchGAN')
+        # parser.add_argument(
+        #     '--netG',
+        #     type=str,
+        #     default='unet_256',
+        #     choices=['unet_256', 'unet_128'],
+        #     help='Generator architecture')
         parser.add_argument(
             '--n_layers_D',
             type=int,
             default=3,
             help='Number of layers in discriminator when netD is n_layers')
         parser.add_argument(
+            '--num_downs',
+            type=int,
+            default=8,
+            help='Number of layers in generator (at least 5)')
+        parser.add_argument(
+            '--height_down_layers',
+            type=int,
+            default=8,
+            help='Number of layers in the generator where the feature map height is reduced by half (at least 1)')
+        parser.add_argument(
             '--norm',
             type=str,
-            default='instance',
+            default='batch',
             choices=['instance', 'batch', 'none'],
             help='Normalization type for the network')
         parser.add_argument(
@@ -127,19 +136,40 @@ class BaseOptions:
             action="store_true",
             help="if true, takes images in order to make batches, otherwise takes them randomly")
         parser.add_argument(
-            '--load_size',
-            type=int,
-            default=286,
-            help='Initial image resize dimension')
-        parser.add_argument(
-            '--crop_size',
+            '--load_size_height',
             type=int,
             default=256,
-            help='Final image crop dimension')
+            help='Initial image height resize dimension')
+        parser.add_argument(
+            '--load_size_width',
+            type=int,
+            default=256,
+            help='Initial image width resize dimension')
+        parser.add_argument(
+            '--crop_size_height',
+            type=int,
+            default=256,
+            help='Final image height crop dimension')
+        parser.add_argument(
+            '--crop_size_height',
+            type=int,
+            default=256,
+            help='Final image width crop dimension')
+        # parser.add_argument(
+        #     '--padding',
+        #     type=str,
+        #     default='none',
+        #     choices=['white', 'random', 'replicate', 'constant', 'none'],
+        #     help='Padding for images to equalize size')
+        # parser.add_argument(
+        #     '--constant_value_padding',
+        #     type=int,
+        #     default=0,
+        #     help='Constant value for constant padding (e.g., 0 for black, 255 for white)')
         parser.add_argument(
             '--preprocess',
             type=str,
-            default='resize_and_crop',
+            default='none',
             choices=['resize_and_crop', 'crop', 'resize', 'none'],
             help='Preprocessing method for images during loading')
         parser.add_argument(
@@ -211,7 +241,7 @@ class BaseOptions:
         print('\n'.join(message))
 
         # Save configuration to file
-        expr_dir = Path(opt.checkpoints_dir) / opt.name
+        expr_dir: Path = Path(opt.checkpoints_dir) / opt.name
         expr_dir.mkdir(parents=True, exist_ok=True)
         with (expr_dir / 'opt.txt').open('w') as f:
             f.write('\n'.join(message) + '\n')
@@ -224,7 +254,7 @@ class BaseOptions:
         """
         opt = self.gather_options()
         opt.isTrain = self.isTrain
-        
+
         if opt.suffix:
             opt.name = f"{opt.name}_{opt.suffix.format(**vars(opt))}"
         self.print_options(opt)

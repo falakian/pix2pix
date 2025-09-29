@@ -89,7 +89,7 @@ class TrainOptions(BaseOptions):
             '--gan_mode',
             type=str,
             default='vanilla',
-            choices=['vanilla', 'lsgan'],
-            help='GAN objective type (vanilla: cross-entropy, lsgan: least squares)')
+            choices=['vanilla', 'lsgan', 'hinge'],
+            help='GAN objective type (vanilla: cross-entropy, lsgan: least squares, hinge')
 
         return parser
