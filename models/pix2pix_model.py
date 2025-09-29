@@ -129,6 +129,8 @@ class Pix2PixModel(BaseModel):
         """
         self.real_input: torch.Tensor = data['input'].to(self.device)
         self.real_output: torch.Tensor = data['output'].to(self.device)
+        self.targets: torch.Tensor = data['targets'].to(self.device)
+        self.target_lengths: torch.Tensor = data['target_lengths'].to(self.device)
     
     def validate(self, val_loader, epoch: int, max_batches: int = 10) -> None:
         """
@@ -270,9 +272,10 @@ class Pix2PixModel(BaseModel):
             if(self.use_ocr_loss and epoch >= self.start_epoch_ocr):
                 ocr_epoch = max(0, epoch - self.start_epoch_ocr + 1)
                 lambda_ocr_current = min(self.lambda_ocr, self.lambda_ocr * ocr_epoch / self.ocr_warmup_epochs)
-                targets, target_lengths = self._get_ocr_targets_from_real()
+                if(self.targets is None or self.target_lengths is None):
+                    targets, target_lengths = self._get_ocr_targets_from_real()
                 logits, logit_lengths = self.ocr.forward_logits(self.output_generator)
-                self.loss_G_OCR = self.ocr.ctc_loss(logits, logit_lengths, targets, target_lengths) * lambda_ocr_current
+                self.loss_G_OCR = self.ocr.ctc_loss(logits, logit_lengths, self.targets, self.target_lengths) * lambda_ocr_current
                 self.loss_G += self.loss_G_OCR
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM

@@ -1,5 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+import logging
+logging.getLogger("kraken").setLevel(logging.ERROR)
 
 import time
 from typing import Dict, Any

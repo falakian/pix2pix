@@ -14,6 +14,7 @@ class AlignedDataset(BaseDataset):
         # Define directory paths using pathlib for robust path handling
         self.dir_input: Path = Path(opt.dataroot) / opt.input_dir
         self.dir_output: Path = Path(opt.dataroot) / opt.output_dir
+        self.dir_ocr_label: Path = Path(opt.dataroot) / opt.ocr_label_dir
         
         # Verify directories exist
         if not self.dir_input.exists():
@@ -27,6 +28,9 @@ class AlignedDataset(BaseDataset):
         )
         self.output_paths: List[Path] = sorted(
             make_dataset(str(self.dir_output), self.opt.max_dataset_size)
+        )
+        self.ocr_label_paths: List[Path] = sorted(
+            make_dataset(str(self.dir_ocr_label), self.opt.max_dataset_size)
         )
         
         # Validate dataset consistency
@@ -56,10 +60,16 @@ class AlignedDataset(BaseDataset):
         """
         input_path = self.input_paths[index]
         output_path = self.output_paths[index]
+        ocr_label_path = self.ocr_label_paths[index]
         
         # Open and convert images to RGB
         input_img = Image.open(input_path).convert('RGB')
         output_img = Image.open(output_path).convert('RGB')
+        if ocr_label_path.exists():
+            ocr_data = torch.load(ocr_label_path)
+        else:
+            ocr_data = {"texts": None, "targets": None, "target_lengths": None}
+    
         
         # Get transformation parameters
         params = get_params(self.opt, input_img.size)
@@ -76,7 +86,8 @@ class AlignedDataset(BaseDataset):
         return {
             'input': input_tensor,
             'output': output_tensor,
-            'name': str(Path(input_path).stem)
+            'name': str(Path(input_path).stem),
+            'ocr': ocr_data
         }
         
 

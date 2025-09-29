@@ -9,17 +9,6 @@ import torchvision.transforms as transforms
 from kraken import rpred, pageseg, binarization
 from kraken.lib import models
 
-def print_torch_state(tag):
-    print(f"--- {tag} ---")
-    print("cudnn.enabled", torch.backends.cudnn.enabled)
-    print("cudnn.benchmark", torch.backends.cudnn.benchmark)
-    print("cudnn.deterministic", torch.backends.cudnn.deterministic)
-    print("deterministic_algorithms",
-          torch.are_deterministic_algorithms_enabled()
-          if hasattr(torch, "are_deterministic_algorithms_enabled") else None)
-    print("threads", torch.get_num_threads(), "interop", torch.get_num_interop_threads())
-
-
 class KrakenOCRWrapper(nn.Module):
     """
     Kraken OCR wrapper .

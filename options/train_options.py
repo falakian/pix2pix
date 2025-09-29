@@ -98,6 +98,11 @@ class TrainOptions(BaseOptions):
             type=int,
             default=20,
             help='number of initial epochs where the model gradually "warms up" for feature matching loss')
+        parser.add_argument(
+            '--ocr_label_dir',
+            type=str,
+            default='trian_ocr_labels',
+            help='Subfolder containing ocr labels')
         
         # Optimizer parameters
         parser.add_argument(
