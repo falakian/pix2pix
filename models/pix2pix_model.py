@@ -5,6 +5,8 @@ import lpips
 from typing import Dict, List, Any
 from .base_model import BaseModel
 from . import networks
+import random
+from utile.DiffAugment_pytorch import DiffAugment
 
 class Pix2PixModel(BaseModel):
     """Pix2Pix model implementing a U-Net generator and PatchGAN discriminator for image-to-image translation."""
@@ -119,11 +121,14 @@ class Pix2PixModel(BaseModel):
     def backward_D(self) -> None:
         """Calculate and backpropagate discriminator losses."""
         # Create fake input-output pair
-        pred_fake = self.netD(self.fake_AB.detach())
+        fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
+        real_AB_aug = DiffAugment(self.real_AB, policy='brightness,translation')
+
+        pred_fake = self.netD(fake_AB_aug.detach())
         self.loss_D_fake: torch.Tensor = self.criterionGAN(pred_fake, False)
         
         # Create real input-output pair
-        pred_real = self.netD(self.real_AB)
+        pred_real = self.netD(real_AB_aug)
         self.loss_D_real: torch.Tensor = self.criterionGAN(pred_real, True)
         
         # Combine losses and backpropagate
@@ -155,17 +160,16 @@ class Pix2PixModel(BaseModel):
         self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
 
         # LPIPS
-        # scale_lpips = 0.25
-        # generator_scaled = F.interpolate(self.output_generator, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
-        # real_scaled = F.interpolate(self.real_output, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
         self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(self.output_generator, self.real_output).mean() * self.lambda_lpips
 
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
         if epoch > self.pretrain_epochs:
+            fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
+            real_AB_aug = DiffAugment(self.real_AB, policy='brightness,translation')
 
-            pred_fake, fake_feats = self.netD(self.fake_AB, return_features=True)
-            _, real_feats = self.netD(self.real_AB, return_features=True)
+            pred_fake, fake_feats = self.netD(fake_AB_aug, return_features=True)
+            _, real_feats = self.netD(real_AB_aug, return_features=True)
             real_feats = [f.detach() for f in real_feats]
 
             self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
@@ -191,6 +195,8 @@ class Pix2PixModel(BaseModel):
             self.optimizer_G.step()
         else:
             # Update discriminator
+            seed = random.randint(0, 10000)
+            torch.manual_seed(seed)
             self.set_requires_grad(self.netD, True)
             self.optimizer_D.zero_grad()
             self.backward_D()
