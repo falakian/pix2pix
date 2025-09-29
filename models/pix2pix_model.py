@@ -5,6 +5,7 @@ import lpips
 from typing import Dict, List, Any
 from .base_model import BaseModel
 from . import networks
+from . import losses
 import random
 from utile.DiffAugment_pytorch import DiffAugment
 
@@ -36,10 +37,10 @@ class Pix2PixModel(BaseModel):
         super().__init__(opt)
         
         # Define loss names for tracking
-        self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_LPIPS', 'G_L1', 'D_real', 'D_fake']
+        self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_Perceptual', 'G_L1', 'D_real', 'D_fake']
         self.loss_G_GAN = torch.tensor(0.0, device=self.device)
         self.loss_G_FM = torch.tensor(0.0, device=self.device)
-        self.loss_G_LPIPS = torch.tensor(0.0, device=self.device)
+        self.loss_G_Perceptual = torch.tensor(0.0, device=self.device)
         self.loss_G_L1 = torch.tensor(0.0, device=self.device)
         self.loss_D_real = torch.tensor(0.0, device=self.device)
         self.loss_D_fake = torch.tensor(0.0, device=self.device)
@@ -72,9 +73,12 @@ class Pix2PixModel(BaseModel):
             )
             
             # Define loss functions
-            self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
+            self.criterionGAN = losses.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = nn.L1Loss()
-            self.criterionLPIPS = lpips.LPIPS(net='alex').to(self.device)
+            if(opt.loss_Perceptual == 'contexual'):
+                self.criterionPerceptual = losses.ContextualLoss(layers=['conv2_2', 'conv3_4'], h=0.3, pretrained_vgg=True, device=self.device)
+            elif(opt.loss_Perceptual == 'lpips'):
+                self.criterionPerceptual = lpips.LPIPS(net='alex').to(self.device)
 
             # Initialize optimizers
             self.optimizer_G = torch.optim.Adam(
@@ -91,7 +95,8 @@ class Pix2PixModel(BaseModel):
             
             self.scales = [0.5, 0.25]
             self.scale_weights = [1, 0.5]
-            self.lambda_lpips = opt.lambda_lpips
+            self.lambda_perceptual = opt.lambda_perceptual
+            self.ctx_use_patches = opt.ctx_use_patches
             self.lambda_fm = opt.lambda_fm
             self.pretrain_epochs = opt.pretrain_epochs
             self.fm_warmup_epochs = opt.fm_warmup_epochs
@@ -156,15 +161,34 @@ class Pix2PixModel(BaseModel):
             fm_loss = fm_loss + torch.mean(torch.abs(f_fake - f_real))
         return fm_loss / float(n_layers)
     
+    def compute_ctx_on_patches(self, fake, real, num_crops=3, crop_w=512):
+        B,C,H,W = fake.shape
+        total = 0.0
+        count = 0
+        for b in range(B):
+            for i in range(num_crops):
+                if W > crop_w:
+                    sx = torch.randint(0, W - crop_w + 1, (1,)).item()
+                    fake_patch = fake[b:b+1, :, :, sx:sx+crop_w]
+                    real_patch = real[b:b+1, :, :, sx:sx+crop_w]
+                else:
+                    fake_patch = fake[b:b+1]
+                    real_patch = real[b:b+1]
+                total += self.criterionPerceptual(fake_patch, real_patch)
+                count += 1
+        return total / count
+    
     def backward_G(self, epoch: int) -> None:
         """Calculate and backpropagate generator losses """
         # Multi-scale L1
         self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
 
-        # LPIPS
-        self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(self.output_generator, self.real_output).mean() * self.lambda_lpips
+        if(self.ctx_use_patches):
+            self.loss_G_Perceptual = self.compute_ctx_on_patches(self.output_generator, self.real_output, num_crops=3, crop_w=512) * self.lambda_perceptual
+        else:
+            self.loss_G_Perceptual: torch.Tensor = self.criterionPerceptual(self.output_generator, self.real_output) * self.lambda_perceptual
 
-        self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
+        self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_Perceptual
 
         if epoch > self.pretrain_epochs:
             fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')

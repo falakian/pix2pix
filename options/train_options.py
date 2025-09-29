@@ -96,10 +96,20 @@ class TrainOptions(BaseOptions):
             default=0.999,
             help='exponential moving average of squared gradients (beta2) for the generator adam optimizer')
         parser.add_argument(
-            '--lambda_lpips',
+            '--loss_Perceptual',
+            type=str,
+            default='contexual',
+            choices=['lpips', 'contexual'],
+            help='Choice of perceptual loss type')
+        parser.add_argument(
+            '--ctx_use_patches',
+            action='store_true',
+            help='Enable patching for contextual loss')
+        parser.add_argument(
+            '--lambda_perceptual',
             type=float,
             default=1.0,
-            help='Weight for lpips loss in the objective function')
+            help='Weight for perceptual loss ')
         parser.add_argument(
             '--lambda_fm',
             type=float,

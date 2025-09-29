@@ -110,63 +110,6 @@ def get_scheduler(optimizer: torch.optim.Optimizer, opt: Dict[str, Any]) -> torc
     else:
         raise ValueError(f"Learning rate policy '{lr_policy}' is not supported")
 
-# GAN Loss
-class GANLoss(nn.Module):
-    """Implements GAN loss functions (vanilla GAN, LSGAN, or Hinge)."""
-    
-    def __init__(self, gan_mode: str = 'vanilla', target_real_label: float = 1.0, target_fake_label: float = 0.0):
-        """
-        Initialize GAN loss function.
-
-        Args:
-            gan_mode: GAN loss type ('vanilla' for BCE, 'lsgan' for MSE, 'hinge' for Hinge loss)
-            target_real_label: Label value for real samples (used for vanilla and lsgan)
-            target_fake_label: Label value for fake samples (used for vanilla and lsgan)
-
-        Raises:
-            ValueError: If gan_mode is not supported
-        """
-        super().__init__()
-        self.register_buffer('real_label', torch.tensor(target_real_label))
-        self.register_buffer('fake_label', torch.tensor(target_fake_label))
-        self.gan_mode = gan_mode
-        if gan_mode == 'lsgan':
-            self.loss = nn.MSELoss()
-        elif gan_mode == 'vanilla':
-            self.loss = nn.BCEWithLogitsLoss()
-        elif gan_mode == 'hinge':
-            self.loss = None
-        else:
-            raise ValueError(f"GAN mode '{gan_mode}' is not supported")
-
-    def get_target_tensor(self, prediction: torch.Tensor, target_is_real: bool) -> torch.Tensor:
-        """
-        Create target tensor for loss computation (used for vanilla and lsgan).
-
-        Args:
-            prediction: Discriminator prediction tensor
-            target_is_real: Whether the target is real (True) or fake (False)
-
-        Returns:
-            Target tensor with appropriate labels
-        """
-        if self.gan_mode in ['vanilla', 'lsgan']:
-            target_label = self.real_label if target_is_real else self.fake_label
-            return target_label.expand_as(prediction)
-        return None  # Not used for hinge loss
-
-    def forward(self, prediction, target_is_real, is_generator=False):
-        if self.gan_mode == 'hinge':
-            if is_generator:
-                return -prediction.mean()
-            else:
-                if target_is_real:
-                    return torch.relu(1.0 - prediction).mean()
-                else:
-                    return torch.relu(1.0 + prediction).mean()
-        else:
-            target_tensor = self.get_target_tensor(prediction, target_is_real)
-            return self.loss(prediction, target_tensor)
 
 # U-Net Generator
 class UnetSkipConnectionBlock(nn.Module):
