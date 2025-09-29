@@ -17,6 +17,7 @@ class TestOptions(BaseOptions):
         parser.add_argument('--results_dir', type=str, default='results', help='saves results here.')
         parser.add_argument('--num_test', type=int, default=200, help='how many test images to run')
         parser.set_defaults(phase='test')
+        parser.set_defaults(preprocess='none')
         parser.set_defaults(input_dir='input_test')
         parser.set_defaults(output_dir='output_test')
         

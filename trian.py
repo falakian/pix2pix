@@ -14,6 +14,10 @@ def main() -> None:
     dataset_size: int = len(dataset)
     print(f"Number of training images: {dataset_size}")
 
+    # Initialize validation dataset
+    if(opt.val_count !=-1):
+        dataset_val = create_dataset(opt , is_validation=True)
+
     # Initialize model
     model: Pix2PixModel = Pix2PixModel(opt)
     model.setup(opt)
@@ -59,6 +63,9 @@ def main() -> None:
         print(f"End of epoch {epoch}/{opt.n_epochs + opt.n_epochs_decay} - "
               f"Time: {epoch_duration} sec")
         
+        if opt.val_count !=-1 and epoch % opt.val_count == 0:
+            model.validate(dataset_val, epoch)
+
         message = ''
         for k, v in losses_means.items():
             avg_loss = v / epoch_iter if epoch_iter > 0 else 0.0

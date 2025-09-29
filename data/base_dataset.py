@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple, Union
 from pathlib import Path
 import random
-
 from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms

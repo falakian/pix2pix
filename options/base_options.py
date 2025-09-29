@@ -56,31 +56,6 @@ class BaseOptions:
             default=64,
             help='Number of filters in the last convolutional layer of the generator')
         parser.add_argument(
-            '--ndf',
-            type=int,
-            default=64,
-            help='Number of filters in the first convolutional layer of the discriminator')
-        parser.add_argument(
-            '--n_layers_D',
-            type=int,
-            default=3,
-            help='Number of layers in discriminator when netD is n_layers')
-        parser.add_argument(
-            '--num_D',
-            type=int,
-            default=3,
-            help='Number of discriminators')
-        parser.add_argument(
-            '--num_downs',
-            type=int,
-            default=8,
-            help='Number of layers in generator (at least 5)')
-        parser.add_argument(
-            '--height_down_layers',
-            type=int,
-            default=8,
-            help='Number of layers in the generator where the feature map height is reduced by half (at least 1)')
-        parser.add_argument(
             '--norm',
             type=str,
             default='instance',
@@ -155,7 +130,7 @@ class BaseOptions:
         parser.add_argument(
             '--num_threads',
             type=int,
-            default=4,
+            default=2,
             help='Number of threads for data loading')
         parser.add_argument(
             '--max_dataset_size',

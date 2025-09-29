@@ -10,7 +10,7 @@ class AlignedDataset(BaseDataset):
     '''A dataset class for aligned image pairs (e.g., input-output pairs like facades).'''
     def __init__(self, opt) -> None:
         super().__init__(opt)
-
+        
         # Define directory paths using pathlib for robust path handling
         self.dir_input: Path = Path(opt.dataroot) / opt.input_dir
         self.dir_output: Path = Path(opt.dataroot) / opt.output_dir
@@ -23,10 +23,10 @@ class AlignedDataset(BaseDataset):
         
         # Load and sort image paths
         self.input_paths: List[Path] = sorted(
-            make_dataset(str(self.dir_input), opt.max_dataset_size)
+            make_dataset(str(self.dir_input), self.opt.max_dataset_size)
         )
         self.output_paths: List[Path] = sorted(
-            make_dataset(str(self.dir_output), opt.max_dataset_size)
+            make_dataset(str(self.dir_output), self.opt.max_dataset_size)
         )
         
         # Validate dataset consistency

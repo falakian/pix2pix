@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.utils as vutils
 import lpips
+from pathlib import Path
 from typing import Dict, List, Any
 from .base_model import BaseModel
 from . import networks
@@ -100,7 +102,8 @@ class Pix2PixModel(BaseModel):
             self.lambda_fm = opt.lambda_fm
             self.pretrain_epochs = opt.pretrain_epochs
             self.fm_warmup_epochs = opt.fm_warmup_epochs
-
+            self.dataroot = opt.dataroot
+            self.val_dir = opt.val_dir
         # Define visualization names
         self.visual_names: List[str] = ['real_input', 'output_generator', 'real_output']
 
@@ -115,6 +118,42 @@ class Pix2PixModel(BaseModel):
         """
         self.real_input: torch.Tensor = data['input'].to(self.device)
         self.real_output: torch.Tensor = data['output'].to(self.device)
+    
+    def validate(self, val_loader, epoch: int, max_batches: int = 10) -> None:
+        """
+    Run validation loop and save sample outputs.
+    
+    Args:
+        val_loader: iterable (e.g., dataset or dataloader) for validation data
+        epoch: current epoch number
+        max_batches: number of validation batches to process (default=10)
+    """
+
+        self.eval()
+
+        results_dir = Path(self.dataroot) / self.val_dir
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+
+        with torch.no_grad():  
+            for i, data in enumerate(val_loader):
+                if i >= max_batches:
+                    break
+
+                self.set_input(data)
+                self.forward()
+
+                input_img = self.real_input.detach().cpu()
+                output_img = self.output_generator.detach().cpu()
+                target_img = self.real_output.detach().cpu()
+
+                grid = torch.cat([input_img, output_img, target_img], dim=2)
+
+                save_path = results_dir / f"epoch{epoch:03d}_sample{i:02d}.png"
+                vutils.save_image(grid, save_path, normalize=True)
+
+        self.train()
+
 
     def forward(self) -> None:
         """Run the generator forward pass to produce output images."""

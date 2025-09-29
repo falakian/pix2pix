@@ -27,12 +27,12 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--print_freq',
             type=int,
-            default=100,
+            default=500,
             help='Frequency of printing training progress to console (in iterations)')
         parser.add_argument(
             '--save_epoch',
             type=int,
-            default=5,
+            default=3,
             help='Save model checkpoint every N epochs')
         parser.add_argument(
             '--continue_train',
@@ -46,18 +46,43 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--n_epochs',
             type=int,
-            default=30,
+            default=100,
             help='Number of epochs with the initial learning rate')
         parser.add_argument(
             '--n_epochs_decay',
             type=int,
-            default=70,
+            default=100,
             help='Number of epochs to linearly decay learning rate to zero')
         parser.add_argument(
             '--pretrain_epochs',
             type=int,
             default=5,
             help='Number of initial epochs where only the generator (G) is trained')
+        parser.add_argument(
+            '--val_dir',
+            type=str,
+            default='val_results',
+            help='saves validation here.')
+        parser.add_argument(
+            '--input_dir_val',
+            type=str,
+            default='input_val',
+            help='Subfolder containing validation input images')
+        parser.add_argument(
+            '--output_dir_val',
+            type=str,
+            default='output_val',
+            help='Subfolder containing validation output images')
+        parser.add_argument(
+            '--val_count',
+            type=int,
+            default=1,
+            help='Run validation every n epochs. Use -1 to disable validation')
+        parser.add_argument(
+            '--max_batches_val',
+            type=int,
+            default=10,
+            help='number of validation batches to process')
         parser.add_argument(
             '--fm_warmup_epochs',
             type=int,
@@ -73,7 +98,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--lr_D',
             type=float,
-            default=0.0002,
+            default=0.0001,
             help='Initial learning rate for the discriminator optimizer')
         parser.add_argument(
             '--beta1_D',
@@ -129,12 +154,37 @@ class TrainOptions(BaseOptions):
             default=50,
             help='Multiply learning rate by gamma every lr_decay_iters iterations')
 
-        # GAN-specific parameters
+        # GAN parameters
         parser.add_argument(
             '--gan_mode',
             type=str,
             default='vanilla',
             choices=['vanilla', 'lsgan', 'hinge'],
             help='GAN objective type (vanilla: cross-entropy, lsgan: least squares, hinge')
+        parser.add_argument(
+            '--ndf',
+            type=int,
+            default=64,
+            help='Number of filters in the first convolutional layer of the discriminator')
+        parser.add_argument(
+            '--n_layers_D',
+            type=int,
+            default=3,
+            help='Number of layers in discriminator when netD is n_layers')
+        parser.add_argument(
+            '--num_D',
+            type=int,
+            default=3,
+            help='Number of discriminators')
+        parser.add_argument(
+            '--num_downs',
+            type=int,
+            default=8,
+            help='Number of layers in generator (at least 5)')
+        parser.add_argument(
+            '--height_down_layers',
+            type=int,
+            default=8,
+            help='Number of layers in the generator where the feature map height is reduced by half (at least 1)')
 
         return parser
