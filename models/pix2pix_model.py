@@ -6,6 +6,7 @@ import lpips
 from pathlib import Path
 from typing import Dict, List, Any
 from .base_model import BaseModel
+from .ocr_kraken import KrakenOCRWrapper
 from . import networks
 from . import losses
 import random
@@ -39,9 +40,10 @@ class Pix2PixModel(BaseModel):
         super().__init__(opt)
         
         # Define loss names for tracking
-        self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_Perceptual', 'G_L1', 'D_real', 'D_fake']
+        self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_OCR', 'G_Perceptual', 'G_L1', 'D_real', 'D_fake']
         self.loss_G_GAN = torch.tensor(0.0, device=self.device)
         self.loss_G_FM = torch.tensor(0.0, device=self.device)
+        self.loss_G_OCR = torch.tensor(0.0, device=self.device)
         self.loss_G_Perceptual = torch.tensor(0.0, device=self.device)
         self.loss_G_L1 = torch.tensor(0.0, device=self.device)
         self.loss_D_real = torch.tensor(0.0, device=self.device)
@@ -82,6 +84,11 @@ class Pix2PixModel(BaseModel):
             elif(opt.loss_Perceptual == 'lpips'):
                 self.criterionPerceptual = lpips.LPIPS(net='alex').to(self.device)
 
+            modelOCR_path = Path(opt.checkpoints_dir) / opt.name / "persian_best.mlmodel"
+            self.use_ocr_loss = opt.lambda_ocr > 0.0
+            if self.use_ocr_loss:
+                self.ocr = KrakenOCRWrapper(modelOCR_path, device=self.device)
+        
             # Initialize optimizers
             self.optimizer_G = torch.optim.Adam(
                 self.netG.parameters(),
@@ -100,10 +107,14 @@ class Pix2PixModel(BaseModel):
             self.lambda_perceptual = opt.lambda_perceptual
             self.ctx_use_patches = opt.ctx_use_patches
             self.lambda_fm = opt.lambda_fm
+            self.lambda_ocr = opt.lambda_ocr
+            self.start_epoch_ocr = opt.start_epoch_ocr
             self.pretrain_epochs = opt.pretrain_epochs
             self.fm_warmup_epochs = opt.fm_warmup_epochs
+            self.ocr_warmup_epochs = opt.ocr_warmup_epochs
             self.dataroot = opt.dataroot
             self.val_dir = opt.val_dir
+
         # Define visualization names
         self.visual_names: List[str] = ['real_input', 'output_generator', 'real_output']
 
@@ -166,7 +177,7 @@ class Pix2PixModel(BaseModel):
     def backward_D(self) -> None:
         fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
         real_AB_aug = DiffAugment(self.real_AB, policy='brightness,translation')
-
+        
         pred_fake_multi = self.netD(fake_AB_aug.detach())
         pred_real_multi = self.netD(real_AB_aug)
 
@@ -179,6 +190,7 @@ class Pix2PixModel(BaseModel):
         self.loss_D_fake = loss_D_fake / len(pred_fake_multi)
         self.loss_D_real = loss_D_real / len(pred_real_multi)
         self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
+        
         self.loss_D.backward()
 
     def multiscale_l1_loss(self, fake: torch.Tensor, real: torch.Tensor) -> torch.Tensor:
@@ -217,6 +229,12 @@ class Pix2PixModel(BaseModel):
                 count += 1
         return total / count
     
+    def _get_ocr_targets_from_real(self):
+        with torch.no_grad():
+            texts = self.ocr.ocr_text(self.real_output)
+        targets, target_lengths = self.ocr.encode_texts(texts)
+        return targets, target_lengths
+    
     def backward_G(self, epoch: int) -> None:
         """Calculate and backpropagate generator losses """
         # Multi-scale L1
@@ -248,6 +266,14 @@ class Pix2PixModel(BaseModel):
 
             self.loss_G_GAN = loss_G_GAN / len(pred_fake_multi)
             self.loss_G_FM = (loss_G_FM / len(pred_fake_multi)) * lambda_FM_current
+
+            if(self.use_ocr_loss and epoch >= self.start_epoch_ocr):
+                ocr_epoch = max(0, epoch - self.start_epoch_ocr + 1)
+                lambda_ocr_current = min(self.lambda_ocr, self.lambda_ocr * ocr_epoch / self.ocr_warmup_epochs)
+                targets, target_lengths = self._get_ocr_targets_from_real()
+                logits, logit_lengths = self.ocr.forward_logits(self.output_generator)
+                self.loss_G_OCR = self.ocr.ctc_loss(logits, logit_lengths, targets, target_lengths) * lambda_ocr_current
+                self.loss_G += self.loss_G_OCR
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM
 

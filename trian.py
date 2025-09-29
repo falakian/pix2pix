@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
 import time
 from typing import Dict, Any
 from options.train_options import TrainOptions

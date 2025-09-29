@@ -59,6 +59,11 @@ class TrainOptions(BaseOptions):
             default=5,
             help='Number of initial epochs where only the generator (G) is trained')
         parser.add_argument(
+            '--start_epoch_ocr',
+            type=int,
+            default=50,
+            help='Epoch number to start calculation of ocr loss')
+        parser.add_argument(
             '--val_dir',
             type=str,
             default='val_results',
@@ -87,7 +92,12 @@ class TrainOptions(BaseOptions):
             '--fm_warmup_epochs',
             type=int,
             default=3,
-            help='number of initial epochs where the model gradually "warms up"')
+            help='number of initial epochs where the model gradually "warms up" for feature matching loss')
+        parser.add_argument(
+            '--ocr_warmup_epochs',
+            type=int,
+            default=20,
+            help='number of initial epochs where the model gradually "warms up" for feature matching loss')
         
         # Optimizer parameters
         parser.add_argument(
@@ -140,6 +150,11 @@ class TrainOptions(BaseOptions):
             type=float,
             default=10.0,
             help='Weight for feature matching loss')
+        parser.add_argument(
+            '--lambda_ocr',
+            type=float,
+            default=0.5,
+            help='Weight for ocr loss')
         
         # Learning rate scheduling
         parser.add_argument(
