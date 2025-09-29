@@ -306,39 +306,35 @@ class NLayerDiscriminator(nn.Module):
             norm_layer: Normalization layer
         """
         super().__init__()
+        self.feature_layers = nn.ModuleList()
+
         sequence = [
             nn.utils.spectral_norm(
                 nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1, bias=True)
             ),
             nn.LeakyReLU(0.2, inplace=True)
         ]
+        self.feature_layers.append(nn.Sequential(*sequence))
+
         nf_mult = 1
         nf_mult_prev = 1
-        for n in range(1, n_layers):
+        for n in range(1, n_layers+1):
             nf_mult_prev = nf_mult
             nf_mult = min(2 ** n, 8)
-            sequence += [
+            block = [
                 nn.utils.spectral_norm(
                     nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
-                              kernel_size=4, stride=2, padding=1, bias=True)
+                              kernel_size=4, stride=2 if n < n_layers else 1, padding=1, bias=True)
                 ),
                 nn.LeakyReLU(0.2, inplace=True)
             ]
-        nf_mult_prev = nf_mult
-        nf_mult = min(2 ** n_layers, 8)
-        sequence += [
-            nn.utils.spectral_norm(
-                nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
-                          kernel_size=4, stride=1, padding=1, bias=True)
-            ),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.utils.spectral_norm(
-                nn.Conv2d(ndf * nf_mult, 1, kernel_size=4, stride=1, padding=1, bias=True)
-            )
-        ]
-        self.model = nn.Sequential(*sequence)
+            self.feature_layers.append(nn.Sequential(*block))
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        self.final_layer = nn.utils.spectral_norm(
+            nn.Conv2d(ndf * nf_mult, 1, kernel_size=4, stride=1, padding=1, bias=True)
+        )
+
+    def forward(self, input: torch.Tensor, return_features=False) -> torch.Tensor:
         """
         Forward pass through the PatchGAN discriminator.
 
@@ -348,7 +344,15 @@ class NLayerDiscriminator(nn.Module):
         Returns:
             Discriminator output (patch map)
         """
-        return self.model(input)
+        features = []
+        out = input
+        for layer in self.feature_layers:
+            out = layer(out)
+            features.append(out)
+        out = self.final_layer(out)
+        if return_features:
+            return out, features
+        return out
 
 # Factory Functions
 def define_G(

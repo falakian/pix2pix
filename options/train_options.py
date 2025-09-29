@@ -81,6 +81,11 @@ class TrainOptions(BaseOptions):
             type=float,
             default=1.0,
             help='Weight for lpips loss in the objective function')
+        parser.add_argument(
+            '--lambda_fm',
+            type=float,
+            default=10.0,
+            help='Weight for feature matching loss')
         
         # Learning rate scheduling
         parser.add_argument(

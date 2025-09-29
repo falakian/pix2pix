@@ -34,7 +34,7 @@ class Pix2PixModel(BaseModel):
         super().__init__(opt)
         
         # Define loss names for tracking
-        self.loss_names: List[str] = ['G_GAN','G_LPIPS', 'G_L1', 'D_real', 'D_fake']
+        self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_LPIPS', 'G_L1', 'D_real', 'D_fake']
         self.loss_G_GAN = 0
         self.loss_G_LPIPS = 0
         self.loss_G_L1 = 0
@@ -88,6 +88,7 @@ class Pix2PixModel(BaseModel):
             self.scales = [0.5, 0.25]
             self.scale_weights = [1, 0.5]
             self.lambda_lpips = opt.lambda_lpips
+            self.lambda_fm = opt.lambda_fm
             self.pretrain_epochs = opt.pretrain_epochs
 
         # Define visualization names
@@ -109,16 +110,18 @@ class Pix2PixModel(BaseModel):
         """Run the generator forward pass to produce output images."""
         self.output_generator: torch.Tensor = self.netG(self.real_input)
 
+        if self.isTrain:
+            self.fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
+            self.real_AB = torch.cat((self.real_input, self.real_output), dim=1)
+
     def backward_D(self) -> None:
         """Calculate and backpropagate discriminator losses."""
         # Create fake input-output pair
-        fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
-        pred_fake = self.netD(fake_AB.detach())
+        pred_fake = self.netD(self.fake_AB.detach())
         self.loss_D_fake: torch.Tensor = self.criterionGAN(pred_fake, False)
         
         # Create real input-output pair
-        real_AB = torch.cat((self.real_input, self.real_output), dim=1)
-        pred_real = self.netD(real_AB)
+        pred_real = self.netD(self.real_AB)
         self.loss_D_real: torch.Tensor = self.criterionGAN(pred_real, True)
         
         # Combine losses and backpropagate
@@ -136,6 +139,14 @@ class Pix2PixModel(BaseModel):
             total_loss += weight * self.criterionL1(fake_scaled, real_scaled)
         return total_loss
     
+    def feature_matching_loss_from_feats(self, fake_feats: List[torch.Tensor], real_feats: List[torch.Tensor]) -> torch.Tensor:
+        """Compute FM loss from precomputed feature maps (avoid repeated netD calls)."""
+        fm_loss = torch.tensor(0.0, device=self.device)
+        n_layers = max(1, len(fake_feats))
+        for f_fake, f_real in zip(fake_feats, real_feats):
+            fm_loss = fm_loss + torch.mean(torch.abs(f_fake - f_real))
+        return fm_loss / float(n_layers)
+    
     def backward_G(self, epoch: int) -> None:
         """Calculate and backpropagate generator losses """
         # Multi-scale L1
@@ -150,13 +161,21 @@ class Pix2PixModel(BaseModel):
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
         if epoch > self.pretrain_epochs:
-            fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
-            pred_fake = self.netD(fake_AB)
+            # fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
+            # real_AB = torch.cat((self.real_input, self.real_output), dim=1)
+
+            pred_fake, fake_feats = self.netD(self.fake_AB, return_features=True)
+            _, real_feats = self.netD(self.real_AB, return_features=True)
+
             self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
-            self.loss_G += self.loss_G_GAN
+
+            self.loss_G_FM = self.feature_matching_loss_from_feats(fake_feats, real_feats) * self.lambda_fm
+
+            self.loss_G += self.loss_G_GAN + self.loss_G_FM
         else:
             self.loss_G_GAN = torch.tensor(0.0, device=self.device)
-        
+            self.loss_G_FM = torch.tensor(0.0, device=self.device)
+
         self.loss_G.backward()
 
     def optimize_parameters(self, epoch: int) -> None:
