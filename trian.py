@@ -25,7 +25,7 @@ def main() -> None:
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
         epoch_start_time: float = time.time()
         epoch_iter = 0
-
+        losses_means: Dict[str, float] = {}
         # Iterate over dataset
         for data in dataset:
             total_iters += opt.batch_size
@@ -33,9 +33,13 @@ def main() -> None:
             # Forward pass and optimization
             model.set_input(data)
             model.optimize_parameters(epoch)
+
+            losses: Dict[str, float] = model.get_current_losses()
+            for k, v in losses.items():
+                losses_means[k] = losses_means.get(k, 0.0) + v
+
             # Print losses at specified frequency
             if total_iters % opt.print_freq == 0:
-                losses: Dict[str, float] = model.get_current_losses()
                 message = f"(epoch: {epoch}, iters: {epoch_iter}) "
                 for k, v in losses.items():
                     message += f", {k}: {v:.3f}"
@@ -54,6 +58,11 @@ def main() -> None:
         epoch_duration: int = int(time.time() - epoch_start_time)
         print(f"End of epoch {epoch}/{opt.n_epochs + opt.n_epochs_decay} - "
               f"Time: {epoch_duration} sec")
-
+        
+        for k, v in losses_means.items():
+            avg_loss = v / epoch_iter if epoch_iter > 0 else 0.0
+        message += f", avg {k}: {avg_loss:.3f}"
+        print(message)
+        
 if __name__ == "__main__":
     main()

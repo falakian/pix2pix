@@ -36,6 +36,7 @@ class Pix2PixModel(BaseModel):
         # Define loss names for tracking
         self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_LPIPS', 'G_L1', 'D_real', 'D_fake']
         self.loss_G_GAN = 0
+        self.loss_G_FM = 0
         self.loss_G_LPIPS = 0
         self.loss_G_L1 = 0
         self.loss_D_real = 0
@@ -76,12 +77,12 @@ class Pix2PixModel(BaseModel):
             self.optimizer_G = torch.optim.Adam(
                 self.netG.parameters(),
                 lr=opt.lr_G,
-                betas=(opt.beta1, 0.999)
+                betas=(opt.beta1_G, opt.beta2_G)
             )
             self.optimizer_D = torch.optim.Adam(
                 self.netD.parameters(),
                 lr=opt.lr_D,
-                betas=(opt.beta1, 0.999)
+                betas=(opt.beta1_D, opt.beta2_D)
             )
 
             
@@ -90,6 +91,7 @@ class Pix2PixModel(BaseModel):
             self.lambda_lpips = opt.lambda_lpips
             self.lambda_fm = opt.lambda_fm
             self.pretrain_epochs = opt.pretrain_epochs
+            self.fm_warmup_epochs = opt.fm_warmup_epochs
 
         # Define visualization names
         self.visual_names: List[str] = ['real_input', 'output_generator', 'real_output']
@@ -161,15 +163,16 @@ class Pix2PixModel(BaseModel):
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
         if epoch > self.pretrain_epochs:
-            # fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
-            # real_AB = torch.cat((self.real_input, self.real_output), dim=1)
 
             pred_fake, fake_feats = self.netD(self.fake_AB, return_features=True)
             _, real_feats = self.netD(self.real_AB, return_features=True)
+            real_feats = [f.detach() for f in real_feats]
 
             self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
 
-            self.loss_G_FM = self.feature_matching_loss_from_feats(fake_feats, real_feats) * self.lambda_fm
+            fm_epoch = max(0, epoch - self.pretrain_epochs)
+            lambda_FM_current = min(self.lambda_fm, self.lambda_fm * fm_epoch / self.fm_warmup_epochs)
+            self.loss_G_FM = self.feature_matching_loss_from_feats(fake_feats, real_feats) * lambda_FM_current
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM
         else:

@@ -58,6 +58,11 @@ class TrainOptions(BaseOptions):
             type=int,
             default=5,
             help='Number of initial epochs where only the generator (G) is trained')
+        parser.add_argument(
+            '--fm_warmup_epochs',
+            type=int,
+            default=3,
+            help='number of initial epochs where the model gradually "warms up"')
         
         # Optimizer parameters
         parser.add_argument(
@@ -70,12 +75,26 @@ class TrainOptions(BaseOptions):
             type=float,
             default=0.0002,
             help='Initial learning rate for the discriminator optimizer')
-        
         parser.add_argument(
-            '--beta1',
+            '--beta1_D',
+            type=float,
+            default=0.0,
+            help='Momentum term (beta1) for the discriminator adam optimizer')
+        parser.add_argument(
+            '--beta1_G',
             type=float,
             default=0.5,
-            help='Momentum term (beta1) for the Adam optimizer')
+            help='Momentum term (beta1) for the generator adam optimizer')
+        parser.add_argument(
+            '--beta2_D',
+            type=float,
+            default=0.9,
+            help='exponential moving average of squared gradients (beta2) for the discriminator adam optimizer')
+        parser.add_argument(
+            '--beta2_G',
+            type=float,
+            default=0.999,
+            help='exponential moving average of squared gradients (beta2) for the generator adam optimizer')
         parser.add_argument(
             '--lambda_lpips',
             type=float,

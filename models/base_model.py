@@ -107,7 +107,7 @@ class BaseModel(nn.Module):
         Returns:
             OrderedDict containing loss names and their values
         """
-        return OrderedDict((name, float(getattr(self, f"loss_{name}"))) for name in self.loss_names)
+        return OrderedDict((name, float(getattr(self, f"loss_{name}").detach())) for name in self.loss_names)
 
     def get_current_visuals(self) -> OrderedDict:
         """
