@@ -42,7 +42,8 @@ class Pix2PixModel(BaseModel):
             input_nc=opt.input_nc,
             output_nc=opt.output_nc,
             ngf=opt.ngf,
-            netG=opt.netG,
+            num_downs=opt.num_downs,
+            # netG=opt.netG,
             norm=opt.norm,
             use_dropout=not opt.no_dropout,
             init_type=opt.init_type,
@@ -54,7 +55,7 @@ class Pix2PixModel(BaseModel):
             self.netD: nn.Module = networks.define_D(
                 input_nc=opt.input_nc + opt.output_nc,
                 ndf=opt.ndf,
-                netD=opt.netD,
+                # netD=opt.netD,
                 n_layers_D=opt.n_layers_D,
                 norm=opt.norm,
                 init_type=opt.init_type,
@@ -118,7 +119,7 @@ class Pix2PixModel(BaseModel):
         # Calculate GAN loss
         fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
         pred_fake = self.netD(fake_AB)
-        self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True)
+        self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
         
         # Calculate L1 loss
         self.loss_G_L1: torch.Tensor = self.criterionL1(self.output_generator, self.real_output) * self.opt.lambda_L1

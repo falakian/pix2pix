@@ -112,16 +112,16 @@ def get_scheduler(optimizer: torch.optim.Optimizer, opt: Dict[str, Any]) -> torc
 
 # GAN Loss
 class GANLoss(nn.Module):
-    """Implements GAN loss functions (vanilla GAN or LSGAN)."""
+    """Implements GAN loss functions (vanilla GAN, LSGAN, or Hinge)."""
     
     def __init__(self, gan_mode: str = 'vanilla', target_real_label: float = 1.0, target_fake_label: float = 0.0):
         """
         Initialize GAN loss function.
 
         Args:
-            gan_mode: GAN loss type ('vanilla' for BCE, 'lsgan' for MSE)
-            target_real_label: Label value for real samples
-            target_fake_label: Label value for fake samples
+            gan_mode: GAN loss type ('vanilla' for BCE, 'lsgan' for MSE, 'hinge' for Hinge loss)
+            target_real_label: Label value for real samples (used for vanilla and lsgan)
+            target_fake_label: Label value for fake samples (used for vanilla and lsgan)
 
         Raises:
             ValueError: If gan_mode is not supported
@@ -134,12 +134,14 @@ class GANLoss(nn.Module):
             self.loss = nn.MSELoss()
         elif gan_mode == 'vanilla':
             self.loss = nn.BCEWithLogitsLoss()
+        elif gan_mode == 'hinge':
+            self.loss = None
         else:
             raise ValueError(f"GAN mode '{gan_mode}' is not supported")
 
     def get_target_tensor(self, prediction: torch.Tensor, target_is_real: bool) -> torch.Tensor:
         """
-        Create target tensor for loss computation.
+        Create target tensor for loss computation (used for vanilla and lsgan).
 
         Args:
             prediction: Discriminator prediction tensor
@@ -148,22 +150,23 @@ class GANLoss(nn.Module):
         Returns:
             Target tensor with appropriate labels
         """
-        target_label = self.real_label if target_is_real else self.fake_label
-        return target_label.expand_as(prediction)
+        if self.gan_mode in ['vanilla', 'lsgan']:
+            target_label = self.real_label if target_is_real else self.fake_label
+            return target_label.expand_as(prediction)
+        return None  # Not used for hinge loss
 
-    def forward(self, prediction: torch.Tensor, target_is_real: bool) -> torch.Tensor:
-        """
-        Compute GAN loss.
-
-        Args:
-            prediction: Discriminator prediction tensor
-            target_is_real: Whether the target is real (True) or fake (False)
-
-        Returns:
-            Computed loss value
-        """
-        target_tensor = self.get_target_tensor(prediction, target_is_real)
-        return self.loss(prediction, target_tensor)
+    def forward(self, prediction, target_is_real, is_generator=False):
+        if self.gan_mode == 'hinge':
+            if is_generator:
+                return -prediction.mean()
+            else:
+                if target_is_real:
+                    return torch.relu(1.0 - prediction).mean()
+                else:
+                    return torch.relu(1.0 + prediction).mean()
+        else:
+            target_tensor = self.get_target_tensor(prediction, target_is_real)
+            return self.loss(prediction, target_tensor)
 
 # U-Net Generator
 class UnetSkipConnectionBlock(nn.Module):
@@ -178,7 +181,8 @@ class UnetSkipConnectionBlock(nn.Module):
         norm_layer: Callable = nn.BatchNorm2d,
         innermost: bool = False,
         outermost: bool = False,
-        use_dropout: bool = False
+        use_dropout: bool = False,
+        halve_height = True
     ):
         """
         Initialize a U-Net skip connection block.
@@ -195,26 +199,29 @@ class UnetSkipConnectionBlock(nn.Module):
         """
         super().__init__()
         self.outermost = outermost
+        kernel_size = (4,4)
+        stride = (2,2) if(halve_height) else (1,2)
+        padding = (1,1)
         input_nc = input_nc if input_nc is not None else outer_nc
 
-        downconv = nn.Conv2d(input_nc, inner_nc, kernel_size=4, stride=2, padding=1, bias=True)
+        downconv = nn.Conv2d(input_nc, inner_nc, kernel_size=kernel_size, stride=stride, padding=padding, bias=True)
         downrelu = nn.LeakyReLU(0.2, inplace=True)
         downnorm = norm_layer(inner_nc) if norm_layer != (lambda x: x) else nn.Identity()
         uprelu = nn.ReLU(inplace=True)
         upnorm = norm_layer(outer_nc) if norm_layer != (lambda x: x) else nn.Identity()
 
         if outermost:
-            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1)
+            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=kernel_size, stride=stride, padding=padding)
             down = [downconv]
             up = [uprelu, upconv, nn.Tanh()]
             self.model = nn.Sequential(*down, submodule, *up)
         elif innermost:
-            upconv = nn.ConvTranspose2d(inner_nc, outer_nc, kernel_size=4, stride=2, padding=1)
+            upconv = nn.ConvTranspose2d(inner_nc, outer_nc, kernel_size=kernel_size, stride=stride, padding=padding)
             down = [downrelu, downconv]
             up = [uprelu, upconv, upnorm]
             self.model = nn.Sequential(*down, *up)
         else:
-            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1)
+            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=kernel_size, stride=stride, padding=padding)
             down = [downrelu, downconv, downnorm]
             up = [uprelu, upconv, upnorm]
             up = up + [nn.Dropout(0.5)] if use_dropout else up
@@ -242,6 +249,7 @@ class UnetGenerator(nn.Module):
         input_nc: int,
         output_nc: int,
         num_downs: int,
+        height_down_layers: int,
         ngf: int = 64,
         norm_layer: Callable = nn.BatchNorm2d,
         use_dropout: bool = False
@@ -258,13 +266,18 @@ class UnetGenerator(nn.Module):
             use_dropout: Whether to apply dropout
         """
         super().__init__()
-        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, innermost=True, norm_layer=norm_layer)
-        for _ in range(num_downs - 5):
-            unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout)
-        unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, submodule=unet_block, norm_layer=norm_layer)
-        unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, submodule=unet_block, norm_layer=norm_layer)
-        unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)
+        num_downs = max(num_downs, 5)
+        height_down_layers = max(height_down_layers, 1)
+        halve_height = True if num_downs == height_down_layers else False
+        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, innermost=True, norm_layer=norm_layer, halve_height=halve_height)
+        for i in range(num_downs-2, 0, -1):
+            if (num_downs - height_down_layers) < 0:
+                halve_height = True
+            if(i > 3):
+                unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout, halve_height=halve_height)
+            else:
+                unet_block = UnetSkipConnectionBlock(ngf *(2**(i-1)) , ngf * (2**i), submodule=unet_block, norm_layer=norm_layer, halve_height=halve_height)
+        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer, halve_height=True)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
@@ -334,7 +347,8 @@ def define_G(
     input_nc: int,
     output_nc: int,
     ngf: int,
-    netG: str = 'unet_256',
+    num_downs:int,
+    # netG: str = 'unet_256',
     norm: str = 'batch',
     use_dropout: bool = False,
     init_type: str = 'normal',
@@ -357,13 +371,13 @@ def define_G(
         Initialized generator network
     """
     norm_layer = get_norm_layer(norm)
-    net = UnetGenerator(input_nc, output_nc, num_downs=8, ngf=ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+    net = UnetGenerator(input_nc, output_nc, num_downs=num_downs, ngf=ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     return init_net(net, init_type, init_gain)
 
 def define_D(
     input_nc: int,
     ndf: int,
-    netD: str = 'basic',
+    # netD: str = 'basic',
     n_layers_D: int = 3,
     norm: str = 'batch',
     init_type: str = 'normal',
