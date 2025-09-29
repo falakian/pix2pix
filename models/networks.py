@@ -355,9 +355,6 @@ def define_G(
 
     Returns:
         Initialized generator network
-
-    Raises:
-        ValueError: If netG is not supported
     """
     norm_layer = get_norm_layer(norm)
     net = UnetGenerator(input_nc, output_nc, num_downs=8, ngf=ngf, norm_layer=norm_layer, use_dropout=use_dropout)

@@ -88,8 +88,8 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--gan_mode',
             type=str,
-            default='lsgan',
-            choices=['vanilla', 'lsgan', 'wgangp'],
-            help='GAN objective type (vanilla: cross-entropy, lsgan: least squares, wgangp: Wasserstein with gradient penalty)')
+            default='vanilla',
+            choices=['vanilla', 'lsgan'],
+            help='GAN objective type (vanilla: cross-entropy, lsgan: least squares)')
 
         return parser

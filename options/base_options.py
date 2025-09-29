@@ -70,13 +70,14 @@ class BaseOptions:
             '--netD',
             type=str,
             default='basic',
-            choices=['basic', 'n_layers', 'pixel'],
-            help='Discriminator architecture (basic: 70x70 PatchGAN, n_layers: custom layers, pixel: pixel-wise)')
+            choices=['basic', 'n_layers'],
+            help='Discriminator architecture (basic: 70x70 PatchGAN')
         parser.add_argument(
             '--netG',
             type=str,
             default='resnet_9blocks',
-            choices=['resnet_9blocks', 'resnet_6blocks', 'unet_256', 'unet_128'],
+            default='unet_256',
+            choices=['unet_256', 'unet_128'],
             help='Generator architecture')
         parser.add_argument(
             '--n_layers_D',
@@ -107,12 +108,12 @@ class BaseOptions:
         parser.add_argument(
             '--input_dir',
             type=str,
-            default='trainA',
+            default='input_train',
             help='Subfolder containing input images')
         parser.add_argument(
             '--output_dir',
             type=str,
-            default='trainB',
+            default='output_train',
             help='Subfolder containing output images')
 
         # Dataset loading parameters
@@ -162,11 +163,6 @@ class BaseOptions:
             type=str,
             default='',
             help='Custom suffix for experiment name formatting')
-        parser.add_argument(
-            '--results_dir',
-            type=str,
-            default='./results',
-            help='Directory to save experiment results')
         parser.add_argument(
             '--phase',
             type=str,
