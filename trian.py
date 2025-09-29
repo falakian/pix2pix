@@ -42,7 +42,7 @@ def main() -> None:
                 print(message)
 
         # Update learning rate after each epoch
-        model.update_learning_rate()
+        model.update_learning_rate(epoch)
 
         # Save model checkpoints at specified epochs
         if epoch % opt.save_epoch == 0:

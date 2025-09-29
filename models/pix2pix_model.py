@@ -84,7 +84,6 @@ class Pix2PixModel(BaseModel):
                 lr=opt.lr_D,
                 betas=(opt.beta1, 0.999)
             )
-            self.optimizers = [self.optimizer_G, self.optimizer_D]
 
             
             self.scales = [0.5, 0.25]
@@ -151,7 +150,7 @@ class Pix2PixModel(BaseModel):
 
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
-        if epoch >= self.pretrain_epochs:
+        if epoch > self.pretrain_epochs:
             fake_AB = torch.cat((self.real_input, self.output_generator), dim=1)
             pred_fake = self.netD(fake_AB)
             self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
@@ -167,7 +166,7 @@ class Pix2PixModel(BaseModel):
         self.forward()
         
         # Update only generator
-        if epoch < self.pretrain_epochs:
+        if epoch <= self.pretrain_epochs:
             self.set_requires_grad(self.netD, False)
             self.optimizer_G.zero_grad()
             self.backward_G(epoch)

@@ -28,10 +28,11 @@ class BaseModel(nn.Module):
         self.loss_names: List[str] = []
         self.model_names: List[str] = []
         self.visual_names: List[str] = []
-        self.optimizers: List[torch.optim.Optimizer] = []
+        self.optimizer_G: torch.optim.Optimizer
+        self.optimizer_D: torch.optim.Optimizer
         self.image_paths: List[str] = []
         self.metric: float = 0.0
-
+        self.pretrain_epochs: int = opt.pretrain_epochs
         # Ensure save directory exists
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -64,8 +65,9 @@ class BaseModel(nn.Module):
         Set up optimizers, schedulers, and load networks if specified.
         """
         if self.isTrain:
-            self.schedulers = [networks.get_scheduler(optimizer, opt) for optimizer in self.optimizers]
-        
+            self.scheduler_G = networks.get_scheduler(self.optimizer_G, opt)
+            self.scheduler_D = networks.get_scheduler(self.optimizer_D, opt)
+
         if not self.isTrain or opt.continue_train:
             self.load_networks(opt.epoch)
         
@@ -82,17 +84,22 @@ class BaseModel(nn.Module):
         with torch.no_grad():
             self.forward()
 
-    def update_learning_rate(self) -> None:
+    def update_learning_rate(self, epoch) -> None:
         """Update learning rates for all schedulers and print the change."""
         if not self.schedulers:
             return
         
-        old_lr = self.optimizers[0].param_groups[0]['lr']
-        for scheduler in self.schedulers:
-            scheduler.step()
-        new_lr = self.optimizers[0].param_groups[0]['lr']
-        print(f"Learning rate updated: {old_lr:.7f} -> {new_lr:.7f}")
+        old_lr_G = self.optimizer_G[0].param_groups[0]['lr']
+        old_lr_D = self.optimizer_D[0].param_groups[0]['lr']
+        
+        self.scheduler_G.step()
+        if epoch > self.pretrain_epochs:
+            self.scheduler_D.step()
 
+        new_lr_G = self.optimizer_G[0].param_groups[0]['lr']
+        new_lr_D = self.optimizer_D[0].param_groups[0]['lr']
+        print(f"Learning rate generator updated: {old_lr_G:.7f} -> {new_lr_G:.7f}")
+        print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
     def get_current_losses(self) -> OrderedDict:
         """
         Retrieve current training losses.
