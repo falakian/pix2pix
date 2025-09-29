@@ -35,12 +35,12 @@ class Pix2PixModel(BaseModel):
         
         # Define loss names for tracking
         self.loss_names: List[str] = ['G_GAN', 'G_FM', 'G_LPIPS', 'G_L1', 'D_real', 'D_fake']
-        self.loss_G_GAN = 0
-        self.loss_G_FM = 0
-        self.loss_G_LPIPS = 0
-        self.loss_G_L1 = 0
-        self.loss_D_real = 0
-        self.loss_D_fake = 0
+        self.loss_G_GAN = torch.tensor(0.0, device=self.device)
+        self.loss_G_FM = torch.tensor(0.0, device=self.device)
+        self.loss_G_LPIPS = torch.tensor(0.0, device=self.device)
+        self.loss_G_L1 = torch.tensor(0.0, device=self.device)
+        self.loss_D_real = torch.tensor(0.0, device=self.device)
+        self.loss_D_fake = torch.tensor(0.0, device=self.device)
 
         # Define model names based on training mode
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
@@ -155,10 +155,10 @@ class Pix2PixModel(BaseModel):
         self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
 
         # LPIPS
-        scale_lpips = 0.25
-        generator_scaled = F.interpolate(self.output_generator, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
-        real_scaled = F.interpolate(self.real_output, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
-        self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(generator_scaled, real_scaled).mean() * self.lambda_lpips
+        # scale_lpips = 0.25
+        # generator_scaled = F.interpolate(self.output_generator, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
+        # real_scaled = F.interpolate(self.real_output, scale_factor=scale_lpips, mode='bilinear', align_corners=False)
+        self.loss_G_LPIPS: torch.Tensor = self.criterionLPIPS(self.output_generator, self.real_output).mean() * self.lambda_lpips
 
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_LPIPS
 
@@ -175,9 +175,6 @@ class Pix2PixModel(BaseModel):
             self.loss_G_FM = self.feature_matching_loss_from_feats(fake_feats, real_feats) * lambda_FM_current
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM
-        else:
-            self.loss_G_GAN = torch.tensor(0.0, device=self.device)
-            self.loss_G_FM = torch.tensor(0.0, device=self.device)
 
         self.loss_G.backward()
 
