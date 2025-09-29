@@ -172,15 +172,11 @@ def get_transform(
 
     if 'augment' in opt.preprocess:
         transform_list.extend([
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.RandomRotation(degrees=3, fill=(255,)), 
         transforms.RandomAffine(
-            degrees=2,
-            translate=(0.02, 0.02),
+            degrees=3,
             scale=(0.95, 1.05),
             fill=(255,)
         ),
-        transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 0.5))
         ])
 
     transform_list.append(transforms.ToTensor())

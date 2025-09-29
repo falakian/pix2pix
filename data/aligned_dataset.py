@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 from PIL import Image
 import torch
+import random
 from data.base_dataset import BaseDataset, get_params, get_transform
 from data.image_folder import make_dataset
 
@@ -64,6 +65,8 @@ class AlignedDataset(BaseDataset):
         params = get_params(self.opt, input_img.size)
         
         # Apply transformations
+        seed = random.randint(0, 10000)
+        torch.manual_seed(seed)
         input_transform = get_transform(self.opt, params, grayscale=(self.input_nc == 1))
         output_transform = get_transform(self.opt, params, grayscale=(self.output_nc == 1))
         
