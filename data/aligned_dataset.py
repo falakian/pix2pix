@@ -57,8 +57,6 @@ class AlignedDataset(BaseDataset):
             Dict[str, Union[torch.Tensor, str]]: Dictionary containing:
                 - 'input': Transformed input image tensor
                 - 'output': Transformed output image tensor
-                - 'input_paths': Path to input image
-                - 'output_paths': Path to output image
 
         """
         input_path = self.input_paths[index]
@@ -77,12 +75,11 @@ class AlignedDataset(BaseDataset):
         
         input_tensor = input_transform(input_img)
         output_tensor = output_transform(output_img)
-        
+
         return {
             'input': input_tensor,
             'output': output_tensor,
-            'input_paths': str(input_path),
-            'output_paths': str(output_path)
+            'name': str(Path(input_path).stem)
         }
         
 

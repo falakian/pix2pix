@@ -89,13 +89,9 @@ class Pix2PixModel(BaseModel):
             data: Dictionary containing:
                 - input: Input image tensor
                 - output: Target image tensor
-                - input_paths: List of input image paths
-                - output_paths: List of target image paths
         """
         self.real_input: torch.Tensor = data['input'].to(self.device)
         self.real_output: torch.Tensor = data['output'].to(self.device)
-        self.input_paths: List[str] = data['input_paths']
-        self.output_paths: List[str] = data['output_paths']
 
     def forward(self) -> None:
         """Run the generator forward pass to produce output images."""
