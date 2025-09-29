@@ -41,20 +41,14 @@ class BaseOptions:
 
         # Model architecture parameters
         parser.add_argument(
-            '--model',
-            type=str,
-            default='pix2pix',
-            choices=['pix2pix'],
-            help='Model type (currently only pix2pix is supported)')
-        parser.add_argument(
             '--input_nc',
             type=int,
-            default=3,
+            default=1,
             help='Number of input channels for the generator')
         parser.add_argument(
             '--output_nc',
             type=int,
-            default=3,
+            default=1,
             help='Number of output channels for the generator')
         parser.add_argument(
             '--ngf',
@@ -66,18 +60,6 @@ class BaseOptions:
             type=int,
             default=64,
             help='Number of filters in the first convolutional layer of the discriminator')
-        # parser.add_argument(
-        #     '--netD',
-        #     type=str,
-        #     default='basic',
-        #     choices=['basic', 'n_layers'],
-        #     help='Discriminator architecture (basic: 70x70 PatchGAN')
-        # parser.add_argument(
-        #     '--netG',
-        #     type=str,
-        #     default='unet_256',
-        #     choices=['unet_256', 'unet_128'],
-        #     help='Generator architecture')
         parser.add_argument(
             '--n_layers_D',
             type=int,
@@ -151,21 +133,10 @@ class BaseOptions:
             default=256,
             help='Final image height crop dimension')
         parser.add_argument(
-            '--crop_size_height',
+            '--crop_size_width',
             type=int,
             default=256,
             help='Final image width crop dimension')
-        # parser.add_argument(
-        #     '--padding',
-        #     type=str,
-        #     default='none',
-        #     choices=['white', 'random', 'replicate', 'constant', 'none'],
-        #     help='Padding for images to equalize size')
-        # parser.add_argument(
-        #     '--constant_value_padding',
-        #     type=int,
-        #     default=0,
-        #     help='Constant value for constant padding (e.g., 0 for black, 255 for white)')
         parser.add_argument(
             '--preprocess',
             type=str,

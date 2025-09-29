@@ -347,7 +347,8 @@ def define_G(
     input_nc: int,
     output_nc: int,
     ngf: int,
-    num_downs:int,
+    num_downs: int,
+    height_down_layers: int,
     # netG: str = 'unet_256',
     norm: str = 'batch',
     use_dropout: bool = False,
@@ -371,7 +372,7 @@ def define_G(
         Initialized generator network
     """
     norm_layer = get_norm_layer(norm)
-    net = UnetGenerator(input_nc, output_nc, num_downs=num_downs, ngf=ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+    net = UnetGenerator(input_nc, output_nc, num_downs=num_downs,height_down_layers=height_down_layers, ngf=ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     return init_net(net, init_type, init_gain)
 
 def define_D(

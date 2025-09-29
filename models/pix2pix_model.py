@@ -43,6 +43,7 @@ class Pix2PixModel(BaseModel):
             output_nc=opt.output_nc,
             ngf=opt.ngf,
             num_downs=opt.num_downs,
+            height_down_layers=opt.height_down_layers,
             # netG=opt.netG,
             norm=opt.norm,
             use_dropout=not opt.no_dropout,
