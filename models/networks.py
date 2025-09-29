@@ -354,6 +354,46 @@ class NLayerDiscriminator(nn.Module):
             return out, features
         return out
 
+class MultiScaleDiscriminator(nn.Module):
+    """Multi-scale PatchGAN discriminator."""
+
+    def __init__(self, input_nc: int, ndf: int = 64, n_layers: int = 3, num_D: int = 3):
+        """
+        Initialize the multi-scale discriminator.
+
+        Args:
+            input_nc: Number of input channels
+            ndf: Number of filters in first conv layer of each discriminator
+            n_layers: Number of conv layers in each discriminator
+            num_D: Number of discriminators at different scales
+        """
+        super().__init__()
+        self.num_D = num_D
+        self.discriminators = nn.ModuleList([
+            NLayerDiscriminator(input_nc, ndf, n_layers) for _ in range(num_D)
+        ])
+        self.downsample = nn.AvgPool2d(kernel_size=3, stride=2, padding=[1, 1], count_include_pad=False)
+
+    def forward(self, x: torch.Tensor, return_features: bool = False) -> List:
+        """
+        Run input through multiple discriminators at different scales.
+
+        Args:
+            x: Input tensor
+            return_features: Whether to return intermediate features for feature matching
+
+        Returns:
+            List of outputs (and optionally features) from each scale
+        """
+        results = []
+        input_downsampled = x
+        for i in range(self.num_D):
+            out = self.discriminators[i](input_downsampled, return_features=return_features)
+            results.append(out)
+            if i != self.num_D - 1:
+                input_downsampled = self.downsample(input_downsampled)
+        return results
+
 # Factory Functions
 def define_G(
     input_nc: int,
@@ -390,28 +430,11 @@ def define_G(
 def define_D(
     input_nc: int,
     ndf: int,
-    # netD: str = 'basic',
     n_layers_D: int = 3,
+    num_D: int = 3,
     init_type: str = 'normal',
     init_gain: float = 0.02
 ) -> nn.Module:
-    """
-    Create and initialize a discriminator network.
-
-    Args:
-        input_nc: Number of input channels
-        ndf: Number of filters in the first conv layer
-        netD: Discriminator architecture ('basic')
-        n_layers_D: Number of conv layers
-        norm: Normalization type
-        init_type: Initialization method
-        init_gain: Initialization gain
-
-    Returns:
-        Initialized discriminator network
-
-    Raises:
-        ValueError: If netD is not supported
-    """
-    net = NLayerDiscriminator(input_nc, ndf, n_layers_D)
+    """Create and initialize a multi-scale discriminator."""
+    net = MultiScaleDiscriminator(input_nc, ndf, n_layers_D, num_D)
     return init_net(net, init_type, init_gain)

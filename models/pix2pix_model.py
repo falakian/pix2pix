@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 from .base_model import BaseModel
 from . import networks
 import random
-from utile.DiffAugment_pytorch import DiffAugment
+from util.DiffAugment_pytorch import DiffAugment
 
 class Pix2PixModel(BaseModel):
     """Pix2Pix model implementing a U-Net generator and PatchGAN discriminator for image-to-image translation."""
@@ -119,20 +119,21 @@ class Pix2PixModel(BaseModel):
             self.real_AB = torch.cat((self.real_input, self.real_output), dim=1)
 
     def backward_D(self) -> None:
-        """Calculate and backpropagate discriminator losses."""
-        # Create fake input-output pair
         fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
         real_AB_aug = DiffAugment(self.real_AB, policy='brightness,translation')
 
-        pred_fake = self.netD(fake_AB_aug.detach())
-        self.loss_D_fake: torch.Tensor = self.criterionGAN(pred_fake, False)
-        
-        # Create real input-output pair
-        pred_real = self.netD(real_AB_aug)
-        self.loss_D_real: torch.Tensor = self.criterionGAN(pred_real, True)
-        
-        # Combine losses and backpropagate
-        self.loss_D: torch.Tensor = (self.loss_D_fake + self.loss_D_real) * 0.5
+        pred_fake_multi = self.netD(fake_AB_aug.detach())
+        pred_real_multi = self.netD(real_AB_aug)
+
+        loss_D_fake = 0
+        loss_D_real = 0
+        for pred_fake, pred_real in zip(pred_fake_multi, pred_real_multi):
+            loss_D_fake += self.criterionGAN(pred_fake, False)
+            loss_D_real += self.criterionGAN(pred_real, True)
+
+        self.loss_D_fake = loss_D_fake / len(pred_fake_multi)
+        self.loss_D_real = loss_D_real / len(pred_real_multi)
+        self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
         self.loss_D.backward()
 
     def multiscale_l1_loss(self, fake: torch.Tensor, real: torch.Tensor) -> torch.Tensor:
@@ -168,15 +169,21 @@ class Pix2PixModel(BaseModel):
             fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
             real_AB_aug = DiffAugment(self.real_AB, policy='brightness,translation')
 
-            pred_fake, fake_feats = self.netD(fake_AB_aug, return_features=True)
-            _, real_feats = self.netD(real_AB_aug, return_features=True)
-            real_feats = [f.detach() for f in real_feats]
+            pred_fake_multi = self.netD(fake_AB_aug, return_features=True)
+            pred_real_multi = self.netD(real_AB_aug, return_features=True)
 
-            self.loss_G_GAN: torch.Tensor = self.criterionGAN(pred_fake, True, is_generator=True)
+            loss_G_GAN = 0
+            loss_G_FM = 0
+
+            for (pred_fake, fake_feats), (_, real_feats) in zip(pred_fake_multi, pred_real_multi):
+                loss_G_GAN += self.criterionGAN(pred_fake, True, is_generator=True)
+                loss_G_FM += self.feature_matching_loss_from_feats(fake_feats, [f.detach() for f in real_feats])
 
             fm_epoch = max(0, epoch - self.pretrain_epochs)
             lambda_FM_current = min(self.lambda_fm, self.lambda_fm * fm_epoch / self.fm_warmup_epochs)
-            self.loss_G_FM = self.feature_matching_loss_from_feats(fake_feats, real_feats) * lambda_FM_current
+
+            self.loss_G_GAN = loss_G_GAN / len(pred_fake_multi)
+            self.loss_G_FM = (loss_G_FM / len(pred_fake_multi)) * lambda_FM_current
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM
 
