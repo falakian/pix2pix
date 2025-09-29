@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional, Tuple, Union
 from pathlib import Path
 import random
 
-import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms
@@ -49,14 +48,14 @@ class BaseDataset(Dataset, ABC):
         pass
 
     @staticmethod
-    def crop(img: Image.Image, pos: Tuple[int, int], size: int) -> Image.Image:
+    def crop(img: Image.Image, pos: Tuple[int, int], size: Tuple[int, int]) -> Image.Image:
         """
         Crop an image at the specified position with the given size.
 
         Args:
             img (Image.Image): Input PIL image.
             pos (Tuple[int, int]): Top-left corner (x, y) of the crop.
-            size (int): Size of the square crop.
+            size (Tuple[int, int]): Size of the crop (width, height).
 
         Returns:
             Image.Image: Cropped image.
@@ -66,18 +65,18 @@ class BaseDataset(Dataset, ABC):
         """
         width, height = img.size
         x, y = pos
-        crop_size = size
+        crop_width, crop_height = size
 
-        if width < crop_size or height < crop_size:
+        if width < crop_width or height < crop_height:
             raise ValueError(
-                f"Crop size {crop_size} exceeds image dimensions ({width}, {height})"
+                f"Crop size ({crop_width}, {crop_height}) exceeds image dimensions ({width}, {height})"
             )
-        if x < 0 or y < 0 or x + crop_size > width or y + crop_size > height:
+        if x < 0 or y < 0 or x + crop_width > width or y + crop_height > height:
             raise ValueError(
                 f"Invalid crop position ({x}, {y}) for image size ({width}, {height})"
             )
 
-        return img.crop((x, y, x + crop_size, y + crop_size))
+        return img.crop((x, y, x + crop_width, y + crop_height))
 
     @staticmethod
     def flip(img: Image.Image) -> Image.Image:
@@ -110,16 +109,17 @@ def get_params(opt, size: Tuple[int, int]) -> Dict[str, Union[Tuple[int, int], b
     """
     width, height = size
     crop_pos = (width // 2, height // 2)  # Default to center crop
-
+        
     if opt.preprocess != 'none':
-        new_size = opt.load_size
-        if new_size < opt.crop_size:
+        new_width, new_height = opt.load_size_width, opt.load_size_height
+        crop_width, crop_height = opt.crop_size_width, opt.crop_size_height
+        if new_width < crop_width or new_height < crop_height:
             raise ValueError(
-                f"load_size ({new_size}) must be >= crop_size ({opt.crop_size})"
+                f"load_size ({new_width}, {new_height}) must be >= crop_size ({crop_width}, {crop_height})"
             )
         crop_pos = (
-            random.randint(0, max(0, new_size - opt.crop_size)),
-            random.randint(0, max(0, new_size - opt.crop_size))
+            random.randint(0, max(0, new_width - crop_width)),
+            random.randint(0, max(0, new_height - crop_height))
         )
 
     flip = random.random() > 0.5 if not opt.no_flip else False
@@ -128,7 +128,7 @@ def get_params(opt, size: Tuple[int, int]) -> Dict[str, Union[Tuple[int, int], b
 
 def get_transform(
     opt,
-    params: Optional[Dict[str, Union[Tuple[int, int], bool]]] = None,
+    params: Dict[str, Union[Tuple[int, int], bool]],
     grayscale: bool = False
 ) -> transforms.Compose:
     """
@@ -136,7 +136,7 @@ def get_transform(
 
     Args:
         opt (Config): Configuration object with preprocessing options.
-        params (Optional[Dict]): Transformation parameters (crop_pos, flip).
+        params ([Dict]): Transformation parameters (crop_pos, flip).
         grayscale (bool): Whether to convert the image to grayscale.
 
     Returns:
@@ -153,28 +153,22 @@ def get_transform(
     if 'resize' in opt.preprocess:
         transform_list.append(
             transforms.Resize(
-                size=(opt.load_size, opt.load_size),
+                size=(opt.load_size_height, opt.load_size_width),
                 interpolation=transforms.InterpolationMode.BICUBIC
             )
         )
 
     if 'crop' in opt.preprocess:
-        if params is None:
-            transform_list.append(transforms.RandomCrop(opt.crop_size))
-        else:
-            transform_list.append(
-                transforms.Lambda(
-                    lambda img: BaseDataset.crop(img, params['crop_pos'], opt.crop_size)
-                )
+        transform_list.append(
+            transforms.Lambda(
+                lambda img: BaseDataset.crop(img, params['crop_pos'], (opt.crop_size_width, opt.crop_size_height))
             )
+        )
 
     if not opt.no_flip:
-        if params is None:
-            transform_list.append(transforms.RandomHorizontalFlip(p=0.5))
-        elif params['flip']:
-            transform_list.append(
-                transforms.Lambda(lambda img: BaseDataset.flip(img))
-            )
+        transform_list.append(
+            transforms.Lambda(lambda img: BaseDataset.flip(img))
+        )
 
     transform_list.append(transforms.ToTensor())
     if grayscale:

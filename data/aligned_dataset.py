@@ -35,12 +35,6 @@ class AlignedDataset(BaseDataset):
                 f"{len(self.output_paths)} output images"
             )
         
-        # Validate image size parameters
-        if opt.load_size < opt.crop_size:
-            raise ValueError(
-                f"load_size ({opt.load_size}) must be >= crop_size ({opt.crop_size})"
-            )
-        
         # Store channel configurations
         self.input_nc: int = opt.input_nc
         self.output_nc: int = opt.output_nc
@@ -90,5 +84,5 @@ class AlignedDataset(BaseDataset):
         Returns:
             int: Minimum of input/output dataset sizes and max_dataset_size.
         """
-        return min(len(self.input_paths), len(self.output_paths), self.opt.max_dataset_size)
+        return min(len(self.input_paths), self.opt.max_dataset_size)
     
