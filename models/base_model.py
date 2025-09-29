@@ -86,7 +86,7 @@ class BaseModel(nn.Module):
 
     def update_learning_rate(self, epoch) -> None:
         """Update learning rates for all schedulers and print the change."""
-        if not self.schedulers:
+        if not self.optimizer_G or self.optimizer_D:
             return
         
         old_lr_G = self.optimizer_G[0].param_groups[0]['lr']

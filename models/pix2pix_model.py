@@ -63,7 +63,6 @@ class Pix2PixModel(BaseModel):
                 input_nc=opt.input_nc + opt.output_nc,
                 ndf=opt.ndf,
                 n_layers_D=opt.n_layers_D,
-                norm=opt.norm,
                 init_type=opt.init_type,
                 init_gain=opt.init_gain
             )

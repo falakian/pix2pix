@@ -295,7 +295,7 @@ class UnetGenerator(nn.Module):
 class NLayerDiscriminator(nn.Module):
     """PatchGAN discriminator for local feature discrimination."""
     
-    def __init__(self, input_nc: int, ndf: int = 64, n_layers: int = 3, norm_layer: Callable = nn.BatchNorm2d):
+    def __init__(self, input_nc: int, ndf: int = 64, n_layers: int = 3):
         """
         Initialize the PatchGAN discriminator.
 
@@ -307,7 +307,9 @@ class NLayerDiscriminator(nn.Module):
         """
         super().__init__()
         sequence = [
-            nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1, bias=True),
+            nn.utils.spectral_norm(
+                nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1, bias=True)
+            ),
             nn.LeakyReLU(0.2, inplace=True)
         ]
         nf_mult = 1
@@ -316,17 +318,23 @@ class NLayerDiscriminator(nn.Module):
             nf_mult_prev = nf_mult
             nf_mult = min(2 ** n, 8)
             sequence += [
-                nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=4, stride=2, padding=1, bias=True),
-                norm_layer(ndf * nf_mult) if norm_layer != (lambda x: x) else nn.Identity(),
+                nn.utils.spectral_norm(
+                    nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
+                              kernel_size=4, stride=2, padding=1, bias=True)
+                ),
                 nn.LeakyReLU(0.2, inplace=True)
             ]
         nf_mult_prev = nf_mult
         nf_mult = min(2 ** n_layers, 8)
         sequence += [
-            nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=4, stride=1, padding=1, bias=True),
-            norm_layer(ndf * nf_mult) if norm_layer != (lambda x: x) else nn.Identity(),
+            nn.utils.spectral_norm(
+                nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
+                          kernel_size=4, stride=1, padding=1, bias=True)
+            ),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(ndf * nf_mult, 1, kernel_size=4, stride=1, padding=1, bias=True)
+            nn.utils.spectral_norm(
+                nn.Conv2d(ndf * nf_mult, 1, kernel_size=4, stride=1, padding=1, bias=True)
+            )
         ]
         self.model = nn.Sequential(*sequence)
 
@@ -380,7 +388,6 @@ def define_D(
     ndf: int,
     # netD: str = 'basic',
     n_layers_D: int = 3,
-    norm: str = 'instance',
     init_type: str = 'normal',
     init_gain: float = 0.02
 ) -> nn.Module:
@@ -402,6 +409,5 @@ def define_D(
     Raises:
         ValueError: If netD is not supported
     """
-    norm_layer = get_norm_layer(norm)
-    net = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer)
+    net = NLayerDiscriminator(input_nc, ndf, n_layers_D)
     return init_net(net, init_type, init_gain)
