@@ -32,7 +32,7 @@ class BaseModel(nn.Module):
         self.optimizer_D: torch.optim.Optimizer
         self.image_paths: List[str] = []
         self.metric: float = 0.0
-        self.pretrain_epochs: int = opt.pretrain_epochs
+
         # Ensure save directory exists
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,15 +89,15 @@ class BaseModel(nn.Module):
         if (not self.optimizer_G) or (not self.optimizer_D):
             return
         
-        old_lr_G = self.optimizer_G[0].param_groups[0]['lr']
-        old_lr_D = self.optimizer_D[0].param_groups[0]['lr']
+        old_lr_G = self.optimizer_G.param_groups[0]['lr']
+        old_lr_D = self.optimizer_D.param_groups[0]['lr']
         
         self.scheduler_G.step()
         if epoch > self.pretrain_epochs:
             self.scheduler_D.step()
 
-        new_lr_G = self.optimizer_G[0].param_groups[0]['lr']
-        new_lr_D = self.optimizer_D[0].param_groups[0]['lr']
+        new_lr_G = self.optimizer_G.param_groups[0]['lr']
+        new_lr_D = self.optimizer_D.param_groups[0]['lr']
         print(f"Learning rate generator updated: {old_lr_G:.7f} -> {new_lr_G:.7f}")
         print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
     def get_current_losses(self) -> OrderedDict:
