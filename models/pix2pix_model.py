@@ -49,6 +49,11 @@ class Pix2PixModel(BaseModel):
         self.loss_D_real = torch.tensor(0.0, device=self.device)
         self.loss_D_fake = torch.tensor(0.0, device=self.device)
 
+        self.use_OCR_loss = opt.lambda_ocr > 0.0
+        self.use_FM_loss = opt.lambda_fm > 0.0
+        self.use_Perceptual_loss = opt.lambda_perceptual > 0.0
+        self.use_L1_loss = True
+
         # Define model names based on training mode
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
         
@@ -86,8 +91,7 @@ class Pix2PixModel(BaseModel):
                 self.criterionPerceptual = lpips.LPIPS(net='alex').to(self.device)
 
             modelOCR_path = Path(opt.checkpoints_dir) / opt.name / "persian_best.mlmodel"
-            self.use_ocr_loss = opt.lambda_ocr > 0.0
-            if self.use_ocr_loss:
+            if self.use_OCR_loss:
                 self.ocr = KrakenOCRWrapper(modelOCR_path, device=self.device)
         
             # Initialize optimizers
@@ -243,12 +247,14 @@ class Pix2PixModel(BaseModel):
     def backward_G(self, epoch: int) -> None:
         """Calculate and backpropagate generator losses """
         # Multi-scale L1
-        self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
+        if(self.use_L1_loss):
+            self.loss_G_L1: torch.Tensor = self.multiscale_l1_loss(self.output_generator, self.real_output)
 
-        if(self.ctx_use_patches):
-            self.loss_G_Perceptual = self.compute_ctx_on_patches(self.output_generator, self.real_output, num_crops=3, crop_w=512) * self.lambda_perceptual
-        else:
-            self.loss_G_Perceptual: torch.Tensor = self.criterionPerceptual(self.output_generator, self.real_output) * self.lambda_perceptual
+        if(self.use_Perceptual_loss):
+            if(self.ctx_use_patches):
+                self.loss_G_Perceptual = self.compute_ctx_on_patches(self.output_generator, self.real_output, num_crops=3, crop_w=512) * self.lambda_perceptual
+            else:
+                self.loss_G_Perceptual: torch.Tensor = self.criterionPerceptual(self.output_generator, self.real_output) * self.lambda_perceptual
 
         self.loss_G: torch.Tensor = self.loss_G_L1 + self.loss_G_Perceptual
 
@@ -264,15 +270,16 @@ class Pix2PixModel(BaseModel):
 
             for (pred_fake, fake_feats), (_, real_feats) in zip(pred_fake_multi, pred_real_multi):
                 loss_G_GAN += self.criterionGAN(pred_fake, True, is_generator=True)
-                loss_G_FM += self.feature_matching_loss_from_feats(fake_feats, [f.detach() for f in real_feats])
-
+                if(self.use_FM_loss):
+                    loss_G_FM += self.feature_matching_loss_from_feats(fake_feats, [f.detach() for f in real_feats])
+            
             fm_epoch = max(0, epoch - self.pretrain_epochs)
             lambda_FM_current = min(self.lambda_fm, self.lambda_fm * fm_epoch / self.fm_warmup_epochs)
 
             self.loss_G_GAN = loss_G_GAN / len(pred_fake_multi)
             self.loss_G_FM = (loss_G_FM / len(pred_fake_multi)) * lambda_FM_current
 
-            if(self.use_ocr_loss and epoch >= self.start_epoch_ocr):
+            if(self.use_OCR_loss and epoch >= self.start_epoch_ocr):
                 ocr_epoch = max(0, epoch - self.start_epoch_ocr + 1)
                 lambda_ocr_current = min(self.lambda_ocr, self.lambda_ocr * ocr_epoch / self.ocr_warmup_epochs)
                 fake_feats_vec, fake_logits, fake_logit_lengths = self.ocr.forward_features_logits(self.output_generator)
