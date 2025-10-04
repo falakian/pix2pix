@@ -20,7 +20,7 @@ def is_image_file(filename: str | Path) -> bool:
     """
     return any(str(filename).endswith(ext) for ext in IMG_EXTENSIONS)
 
-def make_dataset(dir_path: str | Path, max_dataset_size: float = float("inf")) -> List[str]:
+def make_dataset(dir_path: str | Path, max_dataset_size: float = float("inf") , is_ocr: bool = False) -> List[Path]:
     """
     Create a list of image file paths from a directory, up to a maximum dataset size.
 
@@ -29,7 +29,7 @@ def make_dataset(dir_path: str | Path, max_dataset_size: float = float("inf")) -
         max_dataset_size (float, optional): Maximum number of images to include. Defaults to infinity.
 
     Returns:
-        List[str]: Sorted list of image file paths.
+        List[Path]: Sorted list of image file paths.
 
     Raises:
         ValueError: If the specified directory does not exist or is not a directory.
@@ -38,9 +38,12 @@ def make_dataset(dir_path: str | Path, max_dataset_size: float = float("inf")) -
     if not dir_path.is_dir():
         raise ValueError(f"'{dir_path}' is not a valid directory")
 
-    images: List[str] = []
+    images: List[Path] = []
     for file_path in sorted(dir_path.rglob("*")):
-        if file_path.is_file() and is_image_file(file_path):
-            images.append(str(file_path))
+        if(file_path.is_file()):
+            if is_ocr:
+                images.append(Path(file_path))
+            elif is_image_file(file_path):
+                images.append(Path(file_path))
 
     return images[:min(max_dataset_size, len(images))]

@@ -79,6 +79,7 @@ class Pix2PixModel(BaseModel):
             # Define loss functions
             self.criterionGAN = losses.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = nn.L1Loss()
+            self.featOCR_criterion = nn.L1Loss()
             if(opt.loss_Perceptual == 'contexual'):
                 self.criterionPerceptual = losses.ContextualLoss(layers=['conv2_2', 'conv3_4'], h=0.3, pretrained_vgg=True, device=self.device)
             elif(opt.loss_Perceptual == 'lpips'):
@@ -108,6 +109,8 @@ class Pix2PixModel(BaseModel):
             self.ctx_use_patches = opt.ctx_use_patches
             self.lambda_fm = opt.lambda_fm
             self.lambda_ocr = opt.lambda_ocr
+            self.lambda_Kl_logits = opt.lambda_Kl_logits
+            self.lambda_l1_feat = opt.lambda_l1_feat
             self.start_epoch_ocr = opt.start_epoch_ocr
             self.pretrain_epochs = opt.pretrain_epochs
             self.fm_warmup_epochs = opt.fm_warmup_epochs
@@ -129,8 +132,8 @@ class Pix2PixModel(BaseModel):
         """
         self.real_input: torch.Tensor = data['input'].to(self.device)
         self.real_output: torch.Tensor = data['output'].to(self.device)
-        self.targets: torch.Tensor = data['targets'].to(self.device)
-        self.target_lengths: torch.Tensor = data['target_lengths'].to(self.device)
+        self.feature_lstm: torch.Tensor = data['ocr']['feat'].to(self.device)
+        self.logits: torch.Tensor = data['ocr']['logits'].to(self.device)
     
     def validate(self, val_loader, epoch: int, max_batches: int = 10) -> None:
         """
@@ -272,10 +275,22 @@ class Pix2PixModel(BaseModel):
             if(self.use_ocr_loss and epoch >= self.start_epoch_ocr):
                 ocr_epoch = max(0, epoch - self.start_epoch_ocr + 1)
                 lambda_ocr_current = min(self.lambda_ocr, self.lambda_ocr * ocr_epoch / self.ocr_warmup_epochs)
-                if(self.targets is None or self.target_lengths is None):
-                    targets, target_lengths = self._get_ocr_targets_from_real()
-                logits, logit_lengths = self.ocr.forward_logits(self.output_generator)
-                self.loss_G_OCR = self.ocr.ctc_loss(logits, logit_lengths, self.targets, self.target_lengths) * lambda_ocr_current
+                fake_feats_vec, fake_logits, fake_logit_lengths = self.ocr.forward_features_logits(self.output_generator)
+
+                real_feats_vec = self.feature_lstm
+                real_logits = self.logits
+                real_feats_vec = real_feats_vec.to(fake_feats_vec.device)
+                real_logits = real_logits.to(fake_logits.device)
+
+                loss_feat = self.featOCR_criterion(fake_feats_vec, real_feats_vec.detach()) * self.lambda_l1_feat
+
+                fake_log_probs = F.log_softmax(fake_logits, dim=-1)
+                real_probs = F.softmax(real_logits.detach(), dim=-1)
+
+                kl_loss = F.kl_div(fake_log_probs, real_probs, reduction='batchmean') * self.lambda_Kl_logits
+
+                self.loss_G_OCR = (loss_feat + kl_loss) * lambda_ocr_current
+
                 self.loss_G += self.loss_G_OCR
 
             self.loss_G += self.loss_G_GAN + self.loss_G_FM

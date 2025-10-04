@@ -26,14 +26,14 @@ class KrakenOCRWrapper(nn.Module):
         self.model = models.load_any(model_path, device='cpu')
         torch.set_grad_enabled(True)
         self.net = copy.deepcopy(self.model.nn.nn).to(device)
-        self.net.train()
+        self.net.eval()
         for p in self.net.parameters():
             p.requires_grad = False  # Freeze parameters
 
         self.codec = self.model.codec
         blank_idx = self.codec.c2l.get(' ', 1)
         self.ctc = nn.CTCLoss(blank=blank_idx[0], zero_infinity=True)
-        self.input_width = 960
+        self.input_height = 120
 
     @torch.no_grad()
     def ocr_text(self, img_tensor: torch.Tensor) -> List[str]:
@@ -54,14 +54,12 @@ class KrakenOCRWrapper(nn.Module):
         Differentiable forward pass for generator outputs.
         Returns (logits, logit_lengths) suitable for CTC loss.
         """
-        self.net.train()
         x = self._prep_for_kraken(img_tensor)  # (B,1,H,W)
         output_tuple = self.net(x)  # shape (B,C,T) or (B,C,H,W)
         y = output_tuple[0]
         if y.dim() == 3:
             y = y.permute(2, 0, 1).contiguous()  # (T,B,C)
         elif y.dim() == 4:
-            B, C, H, W = y.shape
             y = y.squeeze(2).permute(2, 0, 1).contiguous()  # (T,B,C)
         else:
             raise RuntimeError("Unexpected Kraken logits shape")
@@ -69,7 +67,42 @@ class KrakenOCRWrapper(nn.Module):
         T = y.shape[0]
         logit_lengths = torch.full((y.shape[1],), T, dtype=torch.long, device=y.device)
         return y, logit_lengths
+    
+    def forward_features_logits(self, img_tensor: torch.Tensor, layer_name: str = 'L_16'):
+        """
+        Run the kraken network on img_tensor and return:
+          - feature_vec: tensor (B, feat_dim) extracted from module  `layer_name`
+          - logits: tensor (T, B, C) same format as forward_logits
+          - logit_lengths: tensor of lengths (B,)
+        Notes:
+          - feature_vec is pooled to (B, feat_dim) via global avg-pool if spatial.
+        """
+        x = self._prep_for_kraken(img_tensor)  # (B,1,H,W)
 
+        features = None
+        seq_len = None
+
+        for name, layer in self.net.named_children():
+            out = layer(x)
+            if isinstance(out, tuple):
+                x, seq_len = out
+            else:
+                x = out
+
+            if name == layer_name:
+                features = x
+
+        y = x
+        if y.dim() == 3:
+            y = y.permute(2, 0, 1).contiguous()  # (T,B,C)
+        elif y.dim() == 4:
+            y = y.squeeze(2).permute(2, 0, 1).contiguous()  # (T,B,C)
+
+        T = y.shape[0]
+        logit_lengths = torch.full((y.shape[1],), T, dtype=torch.long, device=y.device)
+
+        return features, y, logit_lengths
+    
     def encode_texts(self, texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Encodes strings into targets + lengths for CTCLoss.
@@ -91,6 +124,24 @@ class KrakenOCRWrapper(nn.Module):
         """
         Computes CTC loss for given logits and targets.
         """
+
+        L =int(target_lengths)
+
+        if  L > 100:
+            new_T = int(L * 1.1)
+        elif L > 30 and L <= 100:
+            new_T = int(L * 1.2)
+        else:
+            new_T = int(L + 10)
+
+        if(new_T > int(logit_lengths)):
+            logits = F.interpolate(
+                logits.permute(1, 2, 0),  # (B, C, T)
+                size=new_T,
+                mode='nearest'
+            ).permute(2, 0, 1)  # (T, B, C)
+            logit_lengths = torch.tensor([new_T], dtype=torch.long)
+
         log_probs = F.log_softmax(logits, dim=-1)
         return self.ctc(log_probs, targets, logit_lengths, target_lengths)
 
@@ -103,10 +154,9 @@ class KrakenOCRWrapper(nn.Module):
         return bw_img
 
     def _prep_for_kraken(self, x: torch.Tensor) -> torch.Tensor:
-        x = x[0:1,0:1, :, :] 
         x = (x + 1.0) / 2.0
         B,_ ,H, W = x.shape
-        newW = self.input_width
-        newH = (H * newW) // W
+        newH = self.input_height
+        newW = (W * newH) // H
         img = F.interpolate(x, size=(newH, newW), mode='bilinear', align_corners=False)
         return img

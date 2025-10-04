@@ -27,12 +27,12 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--print_freq',
             type=int,
-            default=500,
+            default=400,
             help='Frequency of printing training progress to console (in iterations)')
         parser.add_argument(
             '--save_epoch',
             type=int,
-            default=3,
+            default=1,
             help='Save model checkpoint every N epochs')
         parser.add_argument(
             '--continue_train',
@@ -153,13 +153,23 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--lambda_fm',
             type=float,
-            default=10.0,
+            default=2.0,
             help='Weight for feature matching loss')
         parser.add_argument(
             '--lambda_ocr',
             type=float,
             default=0.5,
             help='Weight for ocr loss')
+        parser.add_argument(
+            '--lambda_Kl_logits',
+            type=float,
+            default=5.0,
+            help='Weight for logits loss')
+        parser.add_argument(
+            '--lambda_l1_feat',
+            type=float,
+            default=1.0,
+            help='Weight for feature matching LSTM loss')
         
         # Learning rate scheduling
         parser.add_argument(
@@ -178,7 +188,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--gan_mode',
             type=str,
-            default='vanilla',
+            default='hinge',
             choices=['vanilla', 'lsgan', 'hinge'],
             help='GAN objective type (vanilla: cross-entropy, lsgan: least squares, hinge')
         parser.add_argument(
