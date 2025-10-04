@@ -98,8 +98,11 @@ class BaseModel(nn.Module):
 
         new_lr_G = self.optimizer_G.param_groups[0]['lr']
         new_lr_D = self.optimizer_D.param_groups[0]['lr']
-        print(f"Learning rate generator updated: {old_lr_G:.7f} -> {new_lr_G:.7f}")
-        print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
+        if(old_lr_G !=new_lr_G):
+            print(f"Learning rate generator updated: {old_lr_G:.7f} -> {new_lr_G:.7f}")
+        if(old_lr_D !=new_lr_D):
+            print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
+            
     def get_current_losses(self) -> OrderedDict:
         """
         Retrieve current training losses.

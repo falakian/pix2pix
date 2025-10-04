@@ -58,7 +58,7 @@ def main() -> None:
         model.update_learning_rate(epoch)
 
         # Save model checkpoints at specified epochs
-        if epoch % opt.save_epoch == 0:
+        if epoch % opt.save_epoch == 0 and opt.save_epoch != 1:
             print(f"Saving model at epoch {epoch}")
             model.save_networks("latest")
             #model.save_networks(epoch)
