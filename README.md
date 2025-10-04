@@ -3,6 +3,11 @@
 **Short description**
 This repository provides a modular, argument-driven implementation inspired by the original **Pix2Pix** model for image-to-image translation. The Pix2Pix model, introduced in the paper *“Image-to-Image Translation with Conditional Adversarial Networks”* by Isola et al. (2017), established a general framework for translating images from one domain to another using conditional GANs. For the original implementation and paper, see the official GitHub repository: [phillipi/pix2pix](https://github.com/phillipi/pix2pix).
 
+**Pix2pix: [Project](https://phillipi.github.io/pix2pix/) | [Paper](https://arxiv.org/pdf/1611.07004.pdf) | [Torch](https://github.com/phillipi/pix2pix) |
+[Tensorflow Core Tutorial](https://www.tensorflow.org/tutorials/generative/pix2pix) | [PyTorch Colab](https://colab.research.google.com/github/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/pix2pix.ipynb)**
+
+<img src="https://phillipi.github.io/pix2pix/images/teaser_v3.png" width="800px"/>
+
 The present project reimplements and extends Pix2Pix in PyTorch, with inspiration and utilities drawn from the excellent [junyanz/pytorch-CycleGAN-and-pix2pix](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) repository. This version emphasizes modularity, configurability, and experimental flexibility.
 
 ---
