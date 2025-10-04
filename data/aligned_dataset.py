@@ -15,7 +15,8 @@ class AlignedDataset(BaseDataset):
         self.dir_input: Path = Path(opt.dataroot) / opt.input_dir
         self.dir_output: Path = Path(opt.dataroot) / opt.output_dir
         self.dir_ocr_label: Path = Path(opt.dataroot) / opt.ocr_label_dir
-        
+        self.use_OCR_loss = opt.lambda_ocr > 0.0
+
         # Verify directories exist
         if not self.dir_input.exists():
             raise FileNotFoundError(f"Input directory not found: {self.dir_input}")
@@ -29,9 +30,10 @@ class AlignedDataset(BaseDataset):
         self.output_paths: List[Path] = sorted(
             make_dataset(str(self.dir_output), self.opt.max_dataset_size)
         )
-        self.ocr_label_paths: List[Path] = sorted(
-            make_dataset(str(self.dir_ocr_label), self.opt.max_dataset_size, is_ocr=True)
-        )
+        if(self.use_OCR_loss):
+            self.ocr_label_paths: List[Path] = sorted(
+                make_dataset(str(self.dir_ocr_label), self.opt.max_dataset_size, is_ocr=True)
+            )
 
         # Validate dataset consistency
         if len(self.input_paths) != len(self.output_paths):
@@ -61,16 +63,6 @@ class AlignedDataset(BaseDataset):
         input_path = self.input_paths[index]
         output_path = self.output_paths[index]
 
-        if index < len(self.ocr_label_paths):
-            ocr_label_path = self.ocr_label_paths[index]
-            if ocr_label_path.exists():
-                ocr_data = torch.load(ocr_label_path)
-                ocr_label_path = self.ocr_label_paths[index]
-            else:
-                ocr_data = {"feat": None, "logits": None}
-        else:
-            ocr_data = { "feat": None, "logits": None}
-
         # Open and convert images to RGB
         input_img = Image.open(input_path).convert('RGB')
         output_img = Image.open(output_path).convert('RGB')
@@ -88,11 +80,28 @@ class AlignedDataset(BaseDataset):
         input_tensor = input_transform(input_img)
         output_tensor = output_transform(output_img)
 
-        return {
+        if (self.use_OCR_loss):
+            if index < len(self.ocr_label_paths):
+                ocr_label_path = self.ocr_label_paths[index]
+                if ocr_label_path.exists():
+                    ocr_data = torch.load(ocr_label_path)
+                    ocr_label_path = self.ocr_label_paths[index]
+                else:
+                    ocr_data = {"feat": None, "logits": None}
+            else:
+                ocr_data = { "feat": None, "logits": None}
+
+            return {
             'input': input_tensor,
             'output': output_tensor,
             'name': str(Path(input_path).stem),
             'ocr': ocr_data
+            }
+
+        return {
+            'input': input_tensor,
+            'output': output_tensor,
+            'name': str(Path(input_path).stem)
         }
         
 

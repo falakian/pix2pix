@@ -61,7 +61,7 @@ def main() -> None:
         if epoch % opt.save_epoch == 0 and opt.save_epoch != 1:
             print(f"Saving model at epoch {epoch}")
             model.save_networks("latest")
-            #model.save_networks(epoch)
+            model.save_networks(epoch)
 
         # Print epoch completion time
         epoch_duration: int = int(time.time() - epoch_start_time)

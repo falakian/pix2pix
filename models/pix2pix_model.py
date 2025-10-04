@@ -143,8 +143,9 @@ class Pix2PixModel(BaseModel):
         """
         self.real_input: torch.Tensor = data['input'].to(self.device)
         self.real_output: torch.Tensor = data['output'].to(self.device)
-        self.feature_lstm: torch.Tensor = data['ocr']['feat'].to(self.device)
-        self.logits: torch.Tensor = data['ocr']['logits'].to(self.device)
+        if self.use_OCR_loss:
+            self.feature_lstm: torch.Tensor = data['ocr']['feat'].to(self.device)
+            self.logits: torch.Tensor = data['ocr']['logits'].to(self.device)
     
     # -------------------------
     # Forward / Validation
@@ -229,12 +230,16 @@ class Pix2PixModel(BaseModel):
                 ) * self.lambda_perceptual
             else:
                 self.loss_G_Perceptual = (
-                    self.criterionPerceptual(self.output_generator, self.real_output)
+                    self.criterionPerceptual(self.output_generator, self.real_output).mean()
                     * self.lambda_perceptual
                 )
-
-        self.loss_G = self.loss_G_L1 + self.loss_G_Perceptual
-
+        
+        self.loss_G = 0
+        if self.use_L1_loss:
+            self.loss_G += self.loss_G_L1
+        if self.use_Perceptual_loss:
+            self.loss_G += self.loss_G_Perceptual
+            
         # Adversarial, FM, OCR losses (after pretrain phase)
         if epoch > self.pretrain_epochs:
             fake_AB_aug = DiffAugment(self.fake_AB, policy='brightness,translation')
