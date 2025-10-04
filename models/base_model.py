@@ -1,13 +1,18 @@
-import torch
-import torch.nn as nn
 from pathlib import Path
 from collections import OrderedDict
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
+
+import torch
+import torch.nn as nn
+
 from . import networks
 
 class BaseModel(nn.Module):
-    """Base class for all models, providing common functionality for training and inference."""
-    
+    """
+    Base class for all models.
+    Provides shared functionality for training, inference, saving, and loading.
+    """
+
     def __init__(self, opt: Dict[str, any]):
         """
         Initialize the base model with configuration options.
@@ -24,7 +29,7 @@ class BaseModel(nn.Module):
         # Enable CuDNN optimization for fixed-size inputs
         torch.backends.cudnn.benchmark = True
         
-        # Initialize lists for model components and metrics
+        # Tracking attributes
         self.loss_names: List[str] = []
         self.model_names: List[str] = []
         self.visual_names: List[str] = []
@@ -36,33 +41,28 @@ class BaseModel(nn.Module):
         # Ensure save directory exists
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
+    # ============================================================
+    # Abstract methods (must be implemented by subclasses)
+    # ============================================================
     def forward(self, *args, **kwargs) -> None:
-        """
-        Abstract method for the forward pass.
-        Must be implemented by subclasses.
-        """
+        """Forward pass (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement forward method")
 
     def set_input(self, input: Dict[str, torch.Tensor]) -> None:
-        """
-        Abstract method to set input data.
-        Must be implemented by subclasses.
-
-        Args:
-            input: Dictionary containing input tensors
-        """
+        """Set input data (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement set_input method")
 
     def optimize_parameters(self) -> None:
-        """
-        Abstract method to optimize model parameters.
-        Must be implemented by subclasses.
-        """
+        """Optimize parameters (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement optimize_parameters method")
+
+    # ============================================================
+    # Setup & Training Utilities
+    # ============================================================
 
     def setup(self, opt: Dict[str, any]) -> None:
         """
-        Set up optimizers, schedulers, and load networks if specified.
+        Set up schedulers, load checkpoints if needed.
         """
         if self.isTrain:
             self.scheduler_G = networks.get_scheduler(self.optimizer_G, opt)
@@ -80,12 +80,12 @@ class BaseModel(nn.Module):
             net.eval()
 
     def test(self) -> None:
-        """Perform forward pass for testing without gradient computation."""
+        """Forward pass in test mode (no gradients)."""
         with torch.no_grad():
             self.forward()
 
     def update_learning_rate(self, epoch) -> None:
-        """Update learning rates for all schedulers and print the change."""
+        """Update learning rates for schedulers."""
         if (not self.optimizer_G) or (not self.optimizer_D):
             return
         
@@ -103,8 +103,12 @@ class BaseModel(nn.Module):
         if(old_lr_D !=new_lr_D):
             print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
 
+    # ============================================================
+    # Losses & Visuals
+    # ============================================================
+
     def get_current_losses(self):
-        """Return current losses as floats (safe whether attribute is tensor or numeric)."""
+        """Return current training losses."""
         losses = OrderedDict()
         for name in self.loss_names:
             attr_name = f"loss_{name}"
@@ -117,20 +121,21 @@ class BaseModel(nn.Module):
         return losses
 
     def get_current_visuals(self) -> OrderedDict:
-        """
-        Retrieve current visualization tensors.
+        """Return current visualization tensors."""
+        return OrderedDict(
+            (name, getattr(self, name)) for name in self.visual_names
+        )
 
-        Returns:
-            OrderedDict containing visualization names and their tensors
-        """
-        return OrderedDict((name, getattr(self, name)) for name in self.visual_names)
+    # ============================================================
+    # Checkpointing
+    # ============================================================
 
     def save_networks(self, epoch: Union[str, int]) -> None:
         """
-        Save all network weights to disk.
+        Save all networks to disk.
 
         Args:
-            epoch: Epoch number or string identifier for checkpoint
+            epoch: Epoch number or checkpoint identifier.
         """
         for name in self.model_names:
             save_path = self.save_dir / f"{epoch}_net_{name}.pth"
@@ -143,10 +148,10 @@ class BaseModel(nn.Module):
 
     def load_networks(self, epoch: Union[str, int]) -> None:
         """
-        Load network weights from disk.
+        Load networks from disk.
 
         Args:
-            epoch: Epoch number or string identifier for checkpoint
+            epoch: Epoch number or checkpoint identifier.
         """
         for name in self.model_names:
             load_path = self.save_dir / f"{epoch}_net_{name}.pth"
@@ -159,10 +164,7 @@ class BaseModel(nn.Module):
 
     def print_networks(self, verbose: bool = False) -> None:
         """
-        Print network architecture and parameter count.
-
-        Args:
-            verbose: If True, print detailed network architecture
+        Print summary of networks (params & structure).
         """
         print("---------- Networks initialized -------------")
         for name in self.model_names:
@@ -173,13 +175,16 @@ class BaseModel(nn.Module):
                 print(net)
         print("---------------------------------------------")
 
+    # ============================================================
+    # Utility
+    # ============================================================
     def set_requires_grad(self, nets: Union[nn.Module, List[nn.Module]], requires_grad: bool = False) -> None:
         """
-        Enable or disable gradient computation for specified networks.
+        Enable/disable gradient computation for given networks.
 
         Args:
             nets: Single network or list of networks
-            requires_grad: Whether to enable gradient computation
+            requires_grad: Whether gradients are required
         """
         if not isinstance(nets, list):
             nets = [nets]
