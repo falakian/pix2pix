@@ -29,10 +29,7 @@ class Pix2PixModel(BaseModel):
         super().__init__(opt)
         
         # Trackable loss names (used in training logs)
-        self.loss_names: List[str] = [
-            'G_GAN', 'G_FM', 'G_OCR', 'G_Perceptual', 'G_L1',
-            'D_real', 'D_fake'
-        ]
+        self.loss_names: List[str] = ['G_GAN', 'D_real', 'D_fake']
 
         # Initialize all losses with zero tensors
         self.loss_G_GAN = torch.tensor(0.0, device=self.device)
@@ -48,6 +45,15 @@ class Pix2PixModel(BaseModel):
         self.use_FM_loss = opt.lambda_fm > 0.0
         self.use_Perceptual_loss = opt.lambda_perceptual > 0.0
         self.use_L1_loss = not opt.no_L1_loss
+
+        if self.use_FM_loss:
+            self.loss_names.append('G_FM')
+        if self.use_OCR_loss:
+            self.loss_names.append('G_OCR')
+        if self.use_Perceptual_loss:
+            self.loss_names.append('G_Perceptual')
+        if self.use_L1_loss:
+            self.loss_names.append('G_L1')
 
         # Model names (used when saving/loading)
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
