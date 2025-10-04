@@ -80,7 +80,7 @@ class Pix2PixModel(BaseModel):
             self.criterionGAN = losses.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = nn.L1Loss()
             self.featOCR_criterion = nn.L1Loss()
-            if(opt.loss_Perceptual == 'contexual'):
+            if(opt.loss_Perceptual == 'contextual'):
                 self.criterionPerceptual = losses.ContextualLoss(layers=['conv2_2', 'conv3_4'], h=0.3, pretrained_vgg=True, device=self.device)
             elif(opt.loss_Perceptual == 'lpips'):
                 self.criterionPerceptual = lpips.LPIPS(net='alex').to(self.device)
@@ -277,15 +277,13 @@ class Pix2PixModel(BaseModel):
                 lambda_ocr_current = min(self.lambda_ocr, self.lambda_ocr * ocr_epoch / self.ocr_warmup_epochs)
                 fake_feats_vec, fake_logits, fake_logit_lengths = self.ocr.forward_features_logits(self.output_generator)
 
-                real_feats_vec = self.feature_lstm
-                real_logits = self.logits
-                real_feats_vec = real_feats_vec.to(fake_feats_vec.device)
-                real_logits = real_logits.to(fake_logits.device)
+                real_feats_vec = self.feature_lstm.detach().to(fake_feats_vec.device)
+                real_logits = self.logits.detach().to(fake_logits.device)
 
-                loss_feat = self.featOCR_criterion(fake_feats_vec, real_feats_vec.detach()) * self.lambda_l1_feat
+                loss_feat = self.featOCR_criterion(fake_feats_vec, real_feats_vec) * self.lambda_l1_feat
 
                 fake_log_probs = F.log_softmax(fake_logits, dim=-1)
-                real_probs = F.softmax(real_logits.detach(), dim=-1)
+                real_probs = F.softmax(real_logits, dim=-1)
 
                 kl_loss = F.kl_div(fake_log_probs, real_probs, reduction='batchmean') * self.lambda_Kl_logits
 

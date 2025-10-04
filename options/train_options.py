@@ -138,8 +138,8 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--loss_Perceptual',
             type=str,
-            default='contexual',
-            choices=['lpips', 'contexual'],
+            default='contextual',
+            choices=['lpips', 'contextual'],
             help='Choice of perceptual loss type')
         parser.add_argument(
             '--ctx_use_patches',
@@ -158,7 +158,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--lambda_ocr',
             type=float,
-            default=0.5,
+            default=2.0,
             help='Weight for ocr loss')
         parser.add_argument(
             '--lambda_Kl_logits',
@@ -168,7 +168,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument(
             '--lambda_l1_feat',
             type=float,
-            default=1.0,
+            default=2.0,
             help='Weight for feature matching LSTM loss')
         
         # Learning rate scheduling

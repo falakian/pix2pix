@@ -26,9 +26,13 @@ class KrakenOCRWrapper(nn.Module):
         self.model = models.load_any(model_path, device='cpu')
         torch.set_grad_enabled(True)
         self.net = copy.deepcopy(self.model.nn.nn).to(device)
-        self.net.eval()
+        self.net.train()
         for p in self.net.parameters():
             p.requires_grad = False  # Freeze parameters
+
+        for m in self.net.modules():
+            if isinstance(m, nn.Dropout):
+                m.eval()
 
         self.codec = self.model.codec
         blank_idx = self.codec.c2l.get(' ', 1)
