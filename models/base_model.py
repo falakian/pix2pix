@@ -102,15 +102,19 @@ class BaseModel(nn.Module):
             print(f"Learning rate generator updated: {old_lr_G:.7f} -> {new_lr_G:.7f}")
         if(old_lr_D !=new_lr_D):
             print(f"Learning rate discriminator updated: {old_lr_D:.7f} -> {new_lr_D:.7f}")
-            
-    def get_current_losses(self) -> OrderedDict:
-        """
-        Retrieve current training losses.
 
-        Returns:
-            OrderedDict containing loss names and their values
-        """
-        return OrderedDict((name, float(getattr(self, f"loss_{name}").detach())) for name in self.loss_names)
+    def get_current_losses(self):
+        """Return current losses as floats (safe whether attribute is tensor or numeric)."""
+        losses = OrderedDict()
+        for name in self.loss_names:
+            attr_name = f"loss_{name}"
+            val = getattr(self, attr_name, 0.0)
+
+            if isinstance(val, torch.Tensor):
+                losses[name] = float(val.detach().cpu())
+            else:
+                losses[name] = float(val)
+        return losses
 
     def get_current_visuals(self) -> OrderedDict:
         """

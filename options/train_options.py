@@ -170,6 +170,10 @@ class TrainOptions(BaseOptions):
             type=float,
             default=2.0,
             help='Weight for feature matching LSTM loss')
+        parser.add_argument(
+            '--no_L1_loss',
+            action='store_true',
+            help='Disable L1 loss')
         
         # Learning rate scheduling
         parser.add_argument(

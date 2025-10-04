@@ -47,7 +47,7 @@ class Pix2PixModel(BaseModel):
         self.use_OCR_loss = opt.lambda_ocr > 0.0
         self.use_FM_loss = opt.lambda_fm > 0.0
         self.use_Perceptual_loss = opt.lambda_perceptual > 0.0
-        self.use_L1_loss = True
+        self.use_L1_loss = not opt.no_L1_loss
 
         # Model names (used when saving/loading)
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
