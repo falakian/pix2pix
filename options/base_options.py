@@ -86,6 +86,16 @@ class BaseOptions:
             type=str,
             default='output_train',
             help='Subfolder containing output images')
+        parser.add_argument(
+            '--num_downs',
+            type=int,
+            default=8,
+            help='Number of layers in generator (at least 5)')
+        parser.add_argument(
+            '--height_down_layers',
+            type=int,
+            default=8,
+            help='Number of layers in the generator where the feature map height is reduced by half (at least 1)')
 
         # Dataset loading parameters
         parser.add_argument(

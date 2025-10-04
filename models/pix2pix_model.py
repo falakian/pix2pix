@@ -27,33 +27,6 @@ class Pix2PixModel(BaseModel):
             opt: Configuration dictionary containing training and architecture parameters.
         """
         super().__init__(opt)
-        
-        # Trackable loss names (used in training logs)
-        self.loss_names: List[str] = ['G_GAN', 'D_real', 'D_fake']
-
-        # Initialize all losses with zero tensors
-        self.loss_G_GAN = torch.tensor(0.0, device=self.device)
-        self.loss_G_FM = torch.tensor(0.0, device=self.device)
-        self.loss_G_OCR = torch.tensor(0.0, device=self.device)
-        self.loss_G_Perceptual = torch.tensor(0.0, device=self.device)
-        self.loss_G_L1 = torch.tensor(0.0, device=self.device)
-        self.loss_D_real = torch.tensor(0.0, device=self.device)
-        self.loss_D_fake = torch.tensor(0.0, device=self.device)
-
-        # Flags for optional losses
-        self.use_OCR_loss = opt.lambda_ocr > 0.0
-        self.use_FM_loss = opt.lambda_fm > 0.0
-        self.use_Perceptual_loss = opt.lambda_perceptual > 0.0
-        self.use_L1_loss = not opt.no_L1_loss
-
-        if self.use_FM_loss:
-            self.loss_names.append('G_FM')
-        if self.use_OCR_loss:
-            self.loss_names.append('G_OCR')
-        if self.use_Perceptual_loss:
-            self.loss_names.append('G_Perceptual')
-        if self.use_L1_loss:
-            self.loss_names.append('G_L1')
 
         # Model names (used when saving/loading)
         self.model_names: List[str] = ['G', 'D'] if self.isTrain else ['G']
@@ -85,6 +58,33 @@ class Pix2PixModel(BaseModel):
                 init_type=opt.init_type,
                 init_gain=opt.init_gain
             )
+            
+            # Trackable loss names (used in training logs)
+            self.loss_names: List[str] = ['G_GAN', 'D_real', 'D_fake']
+
+            # Initialize all losses with zero tensors
+            self.loss_G_GAN = torch.tensor(0.0, device=self.device)
+            self.loss_G_FM = torch.tensor(0.0, device=self.device)
+            self.loss_G_OCR = torch.tensor(0.0, device=self.device)
+            self.loss_G_Perceptual = torch.tensor(0.0, device=self.device)
+            self.loss_G_L1 = torch.tensor(0.0, device=self.device)
+            self.loss_D_real = torch.tensor(0.0, device=self.device)
+            self.loss_D_fake = torch.tensor(0.0, device=self.device)
+
+            # Flags for optional losses
+            self.use_OCR_loss = opt.lambda_ocr > 0.0
+            self.use_FM_loss = opt.lambda_fm > 0.0
+            self.use_Perceptual_loss = opt.lambda_perceptual > 0.0
+            self.use_L1_loss = not opt.no_L1_loss
+
+            if self.use_FM_loss:
+                self.loss_names.append('G_FM')
+            if self.use_OCR_loss:
+                self.loss_names.append('G_OCR')
+            if self.use_Perceptual_loss:
+                self.loss_names.append('G_Perceptual')
+            if self.use_L1_loss:
+                self.loss_names.append('G_L1')
             
             # Loss functions
             self.criterionGAN = losses.GANLoss(opt.gan_mode).to(self.device)
